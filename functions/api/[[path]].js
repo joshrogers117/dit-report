@@ -52,12 +52,14 @@ async function ensureDB(db) {
     db.prepare(`CREATE TABLE IF NOT EXISTS cameras (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       day_id INTEGER NOT NULL REFERENCES shoot_days(id) ON DELETE CASCADE,
+      source_type TEXT DEFAULT 'camera',
       camera_name TEXT NOT NULL DEFAULT '',
       resolution TEXT DEFAULT '',
       codec TEXT DEFAULT '',
       colorspace TEXT DEFAULT '',
       lut TEXT DEFAULT '',
       fps TEXT DEFAULT '23.976',
+      audio TEXT DEFAULT '',
       label TEXT DEFAULT '',
       notes TEXT DEFAULT '',
       sort_order INTEGER NOT NULL DEFAULT 0
@@ -77,6 +79,10 @@ async function ensureDB(db) {
       sort_order INTEGER NOT NULL DEFAULT 0
     )`),
   ]);
+
+  // Migrations: add columns that may not exist in older databases
+  try { await db.prepare('ALTER TABLE cameras ADD COLUMN audio TEXT DEFAULT \'\'').run(); } catch(e) { /* column already exists */ }
+  try { await db.prepare('ALTER TABLE cameras ADD COLUMN source_type TEXT DEFAULT \'camera\'').run(); } catch(e) { /* column already exists */ }
 
   // Seed sample data if database is empty
   const { count } = await db.prepare('SELECT COUNT(*) as count FROM projects').first();
@@ -278,8 +284,8 @@ router.post('/days/:id/clone', async (request, env) => {
         .bind(newDayId, b.drive_name, b.write_speed, b.read_speed, b.capacity, b.format, b.notes, b.sort_order)
     ),
     ...camRes.results.map(c =>
-      env.DB.prepare('INSERT INTO cameras (day_id, camera_name, resolution, codec, colorspace, lut, fps, label, notes, sort_order) VALUES (?,?,?,?,?,?,?,?,?,?)')
-        .bind(newDayId, c.camera_name, c.resolution, c.codec, c.colorspace, c.lut, c.fps, c.label, c.notes, c.sort_order)
+      env.DB.prepare('INSERT INTO cameras (day_id, source_type, camera_name, resolution, codec, colorspace, lut, fps, audio, label, notes, sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
+        .bind(newDayId, c.source_type || 'camera', c.camera_name, c.resolution, c.codec, c.colorspace, c.lut, c.fps, c.audio || '', c.label, c.notes, c.sort_order)
     ),
   ];
   if (cloneStmts.length > 0) await env.DB.batch(cloneStmts);
@@ -325,14 +331,14 @@ router.post('/days/:did/cameras', async (request, env) => {
   const body = await request.json();
   const maxOrder = await env.DB.prepare('SELECT COALESCE(MAX(sort_order), 0) as m FROM cameras WHERE day_id = ?').bind(did).first();
   const result = await env.DB.prepare(
-    'INSERT INTO cameras (day_id, camera_name, resolution, codec, colorspace, lut, fps, label, notes, sort_order) VALUES (?,?,?,?,?,?,?,?,?,?)'
-  ).bind(did, body.camera_name || '', body.resolution || '', body.codec || '', body.colorspace || '', body.lut || '', body.fps || '23.976', body.label || '', body.notes || '', maxOrder.m + 1).run();
+    'INSERT INTO cameras (day_id, source_type, camera_name, resolution, codec, colorspace, lut, fps, audio, label, notes, sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)'
+  ).bind(did, body.source_type || 'camera', body.camera_name || '', body.resolution || '', body.codec || '', body.colorspace || '', body.lut || '', body.fps || '23.976', body.audio || '', body.label || '', body.notes || '', maxOrder.m + 1).run();
   return Response.json({ id: result.meta.last_row_id });
 });
 
 router.put('/cameras/:id', async (request, env) => {
   const body = await request.json();
-  const fields = ['camera_name', 'resolution', 'codec', 'colorspace', 'lut', 'fps', 'label', 'notes', 'sort_order'];
+  const fields = ['source_type', 'camera_name', 'resolution', 'codec', 'colorspace', 'lut', 'fps', 'audio', 'label', 'notes', 'sort_order'];
   const updates = [];
   const values = [];
   for (const f of fields) {
@@ -342,6 +348,16 @@ router.put('/cameras/:id', async (request, env) => {
   values.push(request.params.id);
   await env.DB.prepare(`UPDATE cameras SET ${updates.join(', ')} WHERE id = ?`).bind(...values).run();
   return Response.json({ ok: true });
+});
+
+router.post('/cameras/:id/duplicate', async (request, env) => {
+  const src = await env.DB.prepare('SELECT * FROM cameras WHERE id = ?').bind(request.params.id).first();
+  if (!src) return Response.json({ error: 'Not found' }, { status: 404 });
+  const maxOrder = await env.DB.prepare('SELECT COALESCE(MAX(sort_order), 0) as m FROM cameras WHERE day_id = ?').bind(src.day_id).first();
+  const result = await env.DB.prepare(
+    'INSERT INTO cameras (day_id, source_type, camera_name, resolution, codec, colorspace, lut, fps, audio, label, notes, sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)'
+  ).bind(src.day_id, src.source_type || 'camera', src.camera_name, src.resolution, src.codec, src.colorspace, src.lut, src.fps, src.audio || '', src.label, src.notes, maxOrder.m + 1).run();
+  return Response.json({ id: result.meta.last_row_id });
 });
 
 router.delete('/cameras/:id', async (request, env) => {
@@ -421,10 +437,13 @@ router.get('/projects/:id/export/pdf', async (request, env) => {
   try {
     browser = await puppeteer.launch(env.BROWSER);
     const page = await browser.newPage();
+    await page.setViewport({ width: 1122, height: 800 }); // A4 landscape width at 96dpi
     await page.setContent(html, { waitUntil: 'load' });
+    // Measure actual content height for a single continuous page
+    const contentHeight = await page.evaluate(() => document.body.scrollHeight);
     const pdf = await page.pdf({
-      format: 'A4',
-      landscape: true,
+      width: '11.69in',
+      height: (contentHeight / 96 + 1) + 'in', // convert px to inches + padding
       printBackground: true,
       margin: { top: '0.4in', bottom: '0.4in', left: '0.5in', right: '0.5in' }
     });

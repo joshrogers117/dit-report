@@ -141,6 +141,17 @@ input.invalid { border-color: var(--danger); }
 .toast { position: fixed; bottom: 24px; right: 24px; background: var(--accent2); color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 500; opacity: 0; transform: translateY(10px); transition: all .3s; pointer-events: none; z-index: 100; }
 .toast.show { opacity: 1; transform: translateY(0); }
 
+/* Modal */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 200; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .15s; }
+.modal-overlay.show { opacity: 1; }
+.modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; min-width: 360px; max-width: 480px; width: 90vw; box-shadow: 0 8px 32px rgba(0,0,0,.5); transform: scale(.95); transition: transform .15s; }
+.modal-overlay.show .modal { transform: scale(1); }
+.modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 16px; color: var(--text); text-transform: none; letter-spacing: 0; }
+.modal p { font-size: 14px; color: var(--text-dim); margin-bottom: 20px; line-height: 1.5; }
+.modal input { width: 100%; margin-bottom: 20px; }
+.modal .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.modal .modal-actions .btn { min-width: 80px; text-align: center; }
+
 /* Totals bar */
 .totals-bar { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 20px; display: flex; gap: 32px; font-size: 13px; margin-top: 12px; }
 .totals-bar .t-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); font-weight: 600; }
@@ -178,6 +189,63 @@ function toast(msg) {
   el.textContent = msg;
   el.classList.add('show');
   setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+// Custom modal system
+function showModal(html) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `<div class="modal">${html}</div>`;
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add('show'));
+  return overlay;
+}
+
+function closeModal(overlay) {
+  overlay.classList.remove('show');
+  setTimeout(() => overlay.remove(), 150);
+}
+
+function modalPrompt(title, defaultValue = '') {
+  return new Promise(resolve => {
+    const overlay = showModal(`
+      <h3>${esc(title)}</h3>
+      <input type="text" class="modal-input" value="${esc(defaultValue)}" autofocus>
+      <div class="modal-actions">
+        <button class="btn modal-cancel">Cancel</button>
+        <button class="btn btn-primary modal-ok">OK</button>
+      </div>
+    `);
+    const input = overlay.querySelector('.modal-input');
+    const ok = () => { const v = input.value; closeModal(overlay); resolve(v || null); };
+    const cancel = () => { closeModal(overlay); resolve(null); };
+    overlay.querySelector('.modal-ok').addEventListener('click', ok);
+    overlay.querySelector('.modal-cancel').addEventListener('click', cancel);
+    overlay.addEventListener('click', e => { if (e.target === overlay) cancel(); });
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') ok(); if (e.key === 'Escape') cancel(); });
+    input.focus();
+    input.select();
+  });
+}
+
+function modalConfirm(message) {
+  return new Promise(resolve => {
+    const overlay = showModal(`
+      <h3>Are you sure?</h3>
+      <p>${esc(message)}</p>
+      <div class="modal-actions">
+        <button class="btn modal-cancel">Cancel</button>
+        <button class="btn btn-danger modal-ok">Delete</button>
+      </div>
+    `);
+    overlay.querySelector('.modal-ok').addEventListener('click', () => { closeModal(overlay); resolve(true); });
+    overlay.querySelector('.modal-cancel').addEventListener('click', () => { closeModal(overlay); resolve(false); });
+    overlay.addEventListener('click', e => { if (e.target === overlay) { closeModal(overlay); resolve(false); } });
+    document.addEventListener('keydown', function handler(e) {
+      if (e.key === 'Escape') { document.removeEventListener('keydown', handler); closeModal(overlay); resolve(false); }
+      if (e.key === 'Enter') { document.removeEventListener('keydown', handler); closeModal(overlay); resolve(true); }
+    });
+  });
 }
 
 function navigate(hash) {
@@ -321,7 +389,7 @@ function closeAllMenus() {
 }
 
 async function createProject() {
-  const title = prompt('Project title:');
+  const title = await modalPrompt('Project title:');
   if (!title) return;
   const { id } = await api('/projects', { method: 'POST', body: { title } });
   navigate('#/project/' + id);
@@ -329,7 +397,7 @@ async function createProject() {
 
 async function deleteProject(id) {
   closeAllMenus();
-  if (!confirm('Delete this project and all its data? This cannot be undone.')) return;
+  if (!await modalConfirm('Delete this project and all its data? This cannot be undone.')) return;
   await api('/projects/' + id, { method: 'DELETE' });
   render();
 }
@@ -377,18 +445,30 @@ async function renderProject(app, id) {
         <button class="btn btn-primary" onclick="addDay(${id})">+ Add Day</button>
       </div>
       <div class="days-grid">
-        ${project.days.map(d => `
-          <div class="day-card" onclick="navigate('#/project/${id}/day/${d.id}')">
-            <h4>Day ${String(d.day_number).padStart(2,'0')}</h4>
-            <div class="day-meta">${formatDate(d.date)}</div>
+        ${project.days.map(d => {
+          const editIcon = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 1.5l3 3-9 9H2.5v-3l9-9z"/><path d="M10 3l3 3"/></svg>';
+          return `<div class="day-card" onclick="navigate('#/project/${id}/day/${d.id}')">
+            <div style="display:flex;align-items:start;gap:8px">
+              <div style="flex:1">
+                <h4>Day ${String(d.day_number).padStart(2,'0')}</h4>
+                <div class="day-meta">${formatDate(d.date)}</div>
+              </div>
+              <div class="ellipsis-wrap" onclick="event.stopPropagation()">
+                <button class="ellipsis-btn" onclick="event.stopPropagation(); toggleMenu(this)">&#8943;</button>
+                <div class="ellipsis-menu">
+                  <button onclick="cloneDay(${d.id})">Clone Day</button>
+                  <div class="menu-divider"></div>
+                  <button class="danger" onclick="deleteDay(${d.id}, ${id})">Delete Day</button>
+                </div>
+              </div>
+            </div>
             <div class="day-meta" style="margin-top:8px">
               ${fmtNum(d.totals.gb)} GB &bull; ${d.totals.duration} &bull; ${d.totals.rollCount} rolls
             </div>
-            <div style="margin-top:8px" onclick="event.stopPropagation()">
-              <button class="btn btn-sm" onclick="cloneDay(${d.id})">Clone</button>
-              <button class="btn btn-sm btn-danger" onclick="deleteDay(${d.id}, ${id})">Delete</button>
+            <div class="card-actions">
+              <a class="edit-link" onclick="event.stopPropagation(); navigate('#/project/${id}/day/${d.id}')">${editIcon} Edit Day</a>
             </div>
-          </div>`).join('')}
+          </div>`}).join('')}
       </div>
 
       ${project.days.length > 0 ? `
@@ -413,14 +493,14 @@ async function renderProject(app, id) {
 }
 
 async function addDay(projectId) {
-  const date = prompt('Shoot date (YYYY-MM-DD):', new Date().toISOString().slice(0, 10));
+  const date = await modalPrompt('Shoot date (YYYY-MM-DD):', new Date().toISOString().slice(0, 10));
   if (!date) return;
   const { id } = await api('/projects/' + projectId + '/days', { method: 'POST', body: { date } });
   navigate('#/project/' + projectId + '/day/' + id);
 }
 
 async function cloneDay(dayId) {
-  const date = prompt('Date for the new cloned day (YYYY-MM-DD):', new Date().toISOString().slice(0, 10));
+  const date = await modalPrompt('Date for the new cloned day (YYYY-MM-DD):', new Date().toISOString().slice(0, 10));
   if (!date) return;
   await api('/days/' + dayId + '/clone', { method: 'POST', body: { date } });
   toast('Day cloned');
@@ -428,7 +508,7 @@ async function cloneDay(dayId) {
 }
 
 async function deleteDay(dayId, projectId) {
-  if (!confirm('Delete this day and all its data?')) return;
+  if (!await modalConfirm('Delete this day and all its data?')) return;
   await api('/days/' + dayId, { method: 'DELETE' });
   render();
 }
@@ -535,6 +615,7 @@ function cameraCard(c) {
       <div class="form-group"><label>Colorspace</label><input value="${esc(c.colorspace)}" data-field="colorspace" data-type="camera" class="mono"></div>
       <div class="form-group"><label>LUT</label><input value="${esc(c.lut)}" data-field="lut" data-type="camera" class="mono"></div>
       <div class="form-group"><label>FPS</label><input value="${esc(c.fps)}" data-field="fps" data-type="camera"></div>
+      <div class="form-group"><label>Audio</label><input value="${esc(c.audio)}" data-field="audio" data-type="camera" placeholder="e.g. Onboard Scratch"></div>
     </div>
   </div>`;
 }
@@ -591,7 +672,7 @@ async function addRoll(dayId) {
 }
 
 async function addBreak(dayId) {
-  const name = prompt('Break name:', 'LUNCH');
+  const name = await modalPrompt('Break name:', 'LUNCH');
   if (!name) return;
   await api('/days/' + dayId + '/rolls', { method: 'POST', body: { roll_name: name, is_break: true } });
   render();

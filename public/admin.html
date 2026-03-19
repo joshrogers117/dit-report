@@ -283,7 +283,6 @@ function projectCard(p, isArchived) {
       <span><strong>${p.dayCount || 0}</strong> days</span>
       <span><strong>${fmtNum(p.totals?.gb || 0)}</strong> GB</span>
       <span><strong>${p.totals?.duration?.substring(0,8) || '00:00:00'}</strong></span>
-      <span><strong>${fmtInt(p.totals?.frames || 0)}</strong> frames</span>
     </div>
     <div class="card-actions">
       ${isArchived ? `
@@ -383,7 +382,7 @@ async function renderProject(app, id) {
             <h4>Day ${String(d.day_number).padStart(2,'0')}</h4>
             <div class="day-meta">${formatDate(d.date)}</div>
             <div class="day-meta" style="margin-top:8px">
-              ${fmtNum(d.totals.gb)} GB &bull; ${d.totals.duration} &bull; ${fmtInt(d.totals.frames)} frames &bull; ${d.totals.rollCount} rolls
+              ${fmtNum(d.totals.gb)} GB &bull; ${d.totals.duration} &bull; ${d.totals.rollCount} rolls
             </div>
             <div style="margin-top:8px" onclick="event.stopPropagation()">
               <button class="btn btn-sm" onclick="cloneDay(${d.id})">Clone</button>
@@ -396,7 +395,6 @@ async function renderProject(app, id) {
       <div class="totals-bar" style="margin-top:24px">
         <div><div class="t-label">Total Data</div><div class="t-value">${fmtNum(project.totals.gb)} GB</div></div>
         <div><div class="t-label">Total Duration</div><div class="t-value">${project.totals.duration}</div></div>
-        <div><div class="t-label">Total Frames</div><div class="t-value">${fmtInt(project.totals.frames)}</div></div>
         <div><div class="t-label">Days</div><div class="t-value">${project.totals.dayCount}</div></div>
         <div><div class="t-label">Rolls</div><div class="t-value">${project.totals.rollCount}</div></div>
       </div>` : ''}
@@ -487,7 +485,7 @@ async function renderDay(app, projectId, dayId) {
       <div class="card" style="overflow-x:auto">
         <table class="data-table" id="rollsTable">
           <thead><tr>
-            <th>Roll</th><th>Card Serial</th><th>GB</th><th>Duration (TC)</th><th style="text-align:center">Master</th><th style="text-align:center">Backup</th><th>Frames</th><th>Notes</th><th></th>
+            <th>Roll</th><th>Card Serial</th><th>GB</th><th>Duration (TC)</th><th style="text-align:center">Master</th><th style="text-align:center">Backup</th><th>Notes</th><th></th>
           </tr></thead>
           <tbody id="rollsBody">
             ${day.rolls.map(r => rollRow(r)).join('')}
@@ -545,7 +543,7 @@ function rollRow(r) {
   if (r.is_break) {
     return `<tr data-id="${r.id}" class="break-row">
       <td><input value="${esc(r.roll_name)}" data-field="roll_name" class="mono" style="font-style:italic;color:var(--accent)"></td>
-      <td colspan="6" style="text-align:center;color:var(--text-dim);font-style:italic">-- break --</td>
+      <td colspan="5" style="text-align:center;color:var(--text-dim);font-style:italic">-- break --</td>
       <td></td>
       <td class="row-actions"><button class="btn btn-sm btn-danger" onclick="deleteRoll(${r.id})">x</button></td>
     </tr>`;
@@ -557,7 +555,6 @@ function rollRow(r) {
     <td><input value="${esc(r.duration_tc)}" data-field="duration_tc" class="mono" style="width:110px" placeholder="HH:MM:SS:FF"></td>
     <td style="text-align:center"><input type="checkbox" data-field="master" ${r.master ? 'checked' : ''}></td>
     <td style="text-align:center"><input type="checkbox" data-field="backup" ${r.backup ? 'checked' : ''}></td>
-    <td><input type="number" value="${r.frames}" data-field="frames" class="mono" style="width:90px"></td>
     <td><input value="${esc(r.notes)}" data-field="notes" style="min-width:120px"></td>
     <td class="row-actions"><button class="btn btn-sm btn-danger" onclick="deleteRoll(${r.id})">x</button></td>
   </tr>`;
@@ -659,7 +656,6 @@ async function updateDayTotals(dayId) {
     el.innerHTML = `
       <div><div class="t-label">Total Data</div><div class="t-value">${fmtNum(totalGb)} GB</div></div>
       <div><div class="t-label">Total Duration</div><div class="t-value">${totalDuration}</div></div>
-      <div><div class="t-label">Total Frames</div><div class="t-value">${fmtInt(totalFrames)}</div></div>
       <div><div class="t-label">Rolls</div><div class="t-value">${nonBreak.length}</div></div>`;
   }
 }

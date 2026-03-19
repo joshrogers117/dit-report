@@ -131,7 +131,11 @@ input.invalid { border-color: var(--danger); }
 .admin-camera-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
 .admin-camera-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 20px; position: relative; }
 .admin-camera-card .brand-logo { position: absolute; top: 14px; right: 52px; height: 20px; width: auto; opacity: 0.25; pointer-events: none; filter: brightness(0) invert(1); }
-.admin-camera-card .source-type-badge { display: inline-block; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; padding: 2px 8px; border-radius: 4px; background: rgba(232,118,43,.12); color: var(--accent); margin-bottom: 8px; }
+.admin-camera-card .source-type-badge { display: inline-block; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; padding: 2px 8px; border-radius: 4px; margin-bottom: 8px; }
+.source-type-badge.type-camera { background: rgba(88,166,255,.12); color: #58a6ff; }
+.source-type-badge.type-audio { background: rgba(232,118,43,.12); color: #e8762b; }
+.source-type-badge.type-photo { background: rgba(163,113,247,.12); color: #a371f7; }
+.source-type-badge.type-misc { background: rgba(210,153,34,.12); color: #d29922; }
 .source-picker { position: fixed; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); min-width: 180px; z-index: 200; overflow: hidden; }
 .source-picker button { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: none; color: var(--text); padding: 10px 16px; font-size: 13px; cursor: pointer; font-family: inherit; }
 .source-picker button:hover { background: var(--surface2); }
@@ -614,7 +618,7 @@ function benchRow(b) {
 function cameraCard(c) {
   const type = c.source_type || 'camera';
   const brand = detectBrand(c.camera_name);
-  const typeLabels = { camera: 'Camera', audio: 'Audio', photo: 'Photo', misc: 'Misc Video' };
+  const typeLabels = { camera: 'Camera', audio: 'Audio', photo: 'Photo', misc: 'Misc Source' };
 
   let fields = '';
   if (type === 'camera') {
@@ -660,7 +664,7 @@ function cameraCard(c) {
         <button class="danger" onclick="deleteCamera(${c.id})">Delete Source</button>
       </div>
     </div>
-    ${type !== 'camera' ? `<span class="source-type-badge">${typeLabels[type]}</span>` : ''}
+    <span class="source-type-badge type-${type}">${typeLabels[type]}</span>
     <div class="cam-form">${fields}</div>
   </div>`;
 }
@@ -715,7 +719,7 @@ function showSourcePicker(dayId, el) {
     <button onclick="addCamera(${dayId}, 'camera')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="6" r="4"/><circle cx="16" cy="6" r="4"/><circle cx="8" cy="6" r="1.5"/><circle cx="16" cy="6" r="1.5"/><rect x="3" y="10" width="14" height="11" rx="2"/><path d="M17 14l4-2v8l-4-2"/></svg> Camera</button>
     <button onclick="addCamera(${dayId}, 'audio')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg> Audio</button>
     <button onclick="addCamera(${dayId}, 'photo')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg> Photos</button>
-    <button onclick="addCamera(${dayId}, 'misc')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> Misc Video</button>
+    <button onclick="addCamera(${dayId}, 'misc')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> Misc Source</button>
   `;
   document.body.appendChild(picker);
   const rect = el.getBoundingClientRect();

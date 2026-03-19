@@ -6,7 +6,7 @@ pages_build_output_dir = "public"
 [[d1_databases]]
 binding = "DB"
 database_name = "dit-report"
-database_id = "2aa70294-3246-41fa-ae04-c396cdbc1335"
+database_id = "0e416d48-c80a-4932-a7ce-1d602cac5bbb"
 
 [browser]
 binding = "BROWSER"

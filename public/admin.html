@@ -135,7 +135,8 @@ input.invalid { border-color: var(--danger); }
 .source-picker { position: fixed; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); min-width: 180px; z-index: 200; overflow: hidden; }
 .source-picker button { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: none; color: var(--text); padding: 10px 16px; font-size: 13px; cursor: pointer; font-family: inherit; }
 .source-picker button:hover { background: var(--surface2); }
-.admin-camera-card > .ellipsis-wrap { position: absolute; top: 8px; right: 8px; margin-left: 0; }
+.admin-camera-card > .ellipsis-wrap { position: absolute; top: 8px; right: 8px; margin-left: 0; z-index: 10; }
+.admin-camera-card > .ellipsis-wrap .ellipsis-menu { z-index: 100; }
 .admin-camera-card .cam-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .admin-camera-card .cam-form .full { grid-column: 1 / -1; }
 .admin-camera-card .cam-form .form-group label { margin-bottom: 4px; }
@@ -335,8 +336,6 @@ async function renderDashboard(app) {
       `}
     </div>`;
 
-  // Close menus on outside click
-  document.addEventListener('click', closeAllMenus);
 }
 
 function projectCard(p, isArchived) {
@@ -391,6 +390,11 @@ function toggleMenu(btn) {
 function closeAllMenus() {
   document.querySelectorAll('.ellipsis-menu.open').forEach(m => m.classList.remove('open'));
 }
+
+// Global click-outside to close menus
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.ellipsis-btn')) closeAllMenus();
+});
 
 async function createProject() {
   const title = await modalPrompt('Project title:');

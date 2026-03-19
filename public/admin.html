@@ -130,13 +130,12 @@ input.invalid { border-color: var(--danger); }
 /* Camera cards in admin */
 .admin-camera-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
 .admin-camera-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 20px; position: relative; overflow: hidden; }
-.admin-camera-card .brand-logo { height: 16px; width: auto; opacity: 0.35; pointer-events: none; filter: brightness(0) invert(1); vertical-align: middle; margin-left: 4px; }
+.admin-camera-card .brand-logo { position: absolute; top: 14px; right: 44px; height: 20px; width: auto; opacity: 0.25; pointer-events: none; filter: brightness(0) invert(1); }
 .admin-camera-card .source-type-badge { display: inline-block; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; padding: 2px 8px; border-radius: 4px; background: rgba(232,118,43,.12); color: var(--accent); margin-bottom: 8px; }
 .source-picker { position: fixed; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); min-width: 180px; z-index: 200; overflow: hidden; }
 .source-picker button { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: none; color: var(--text); padding: 10px 16px; font-size: 13px; cursor: pointer; font-family: inherit; }
 .source-picker button:hover { background: var(--surface2); }
-.admin-camera-card .delete-cam { position: absolute; top: 8px; right: 8px; background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 16px; padding: 4px 8px; }
-.admin-camera-card .delete-cam:hover { color: var(--danger); }
+.admin-camera-card .cam-menu-wrap { position: absolute; top: 8px; right: 8px; }
 .admin-camera-card .cam-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .admin-camera-card .cam-form .full { grid-column: 1 / -1; }
 .admin-camera-card .cam-form .form-group label { margin-bottom: 4px; }
@@ -613,13 +612,11 @@ function cameraCard(c) {
   const type = c.source_type || 'camera';
   const brand = detectBrand(c.camera_name);
   const typeLabels = { camera: 'Camera', audio: 'Audio', photo: 'Photo', misc: 'Misc Video' };
-  const brandImg = brand ? `<img class="brand-logo" src="/icons/cameras/${brand}.svg" alt="">` : '';
-  const nameLabels = { camera: 'Camera', audio: 'Device', photo: 'Camera', misc: 'Source' };
 
   let fields = '';
   if (type === 'camera') {
     fields = `
-      <div class="full"><div class="form-group"><label>Camera${brandImg}</label><input value="${esc(c.camera_name)}" data-field="camera_name" data-type="camera"></div></div>
+      <div class="full"><div class="form-group"><label>Camera</label><input value="${esc(c.camera_name)}" data-field="camera_name" data-type="camera"></div></div>
       <div class="form-group"><label>Label</label><input value="${esc(c.label)}" data-field="label" data-type="camera" placeholder="ACAM"></div>
       <div class="form-group"><label>Resolution</label><input value="${esc(c.resolution)}" data-field="resolution" data-type="camera"></div>
       <div class="form-group"><label>Codec</label><input value="${esc(c.codec)}" data-field="codec" data-type="camera" class="mono"></div>
@@ -629,7 +626,7 @@ function cameraCard(c) {
       <div class="form-group"><label>Audio</label><input value="${esc(c.audio)}" data-field="audio" data-type="camera" placeholder="e.g. Onboard Scratch"></div>`;
   } else if (type === 'audio') {
     fields = `
-      <div class="full"><div class="form-group"><label>Device${brandImg}</label><input value="${esc(c.camera_name)}" data-field="camera_name" data-type="camera" placeholder="e.g. Sound Devices 888"></div></div>
+      <div class="full"><div class="form-group"><label>Device</label><input value="${esc(c.camera_name)}" data-field="camera_name" data-type="camera" placeholder="e.g. Sound Devices 888"></div></div>
       <div class="form-group"><label>Label</label><input value="${esc(c.label)}" data-field="label" data-type="camera" placeholder="SOUND"></div>
       <div class="form-group"><label>Sample Rate</label><input value="${esc(c.resolution)}" data-field="resolution" data-type="camera" placeholder="48kHz" class="mono"></div>
       <div class="form-group"><label>Bit Depth</label><input value="${esc(c.codec)}" data-field="codec" data-type="camera" placeholder="24-bit" class="mono"></div>
@@ -637,13 +634,13 @@ function cameraCard(c) {
       <div class="form-group"><label>Notes</label><input value="${esc(c.notes)}" data-field="notes" data-type="camera"></div>`;
   } else if (type === 'photo') {
     fields = `
-      <div class="full"><div class="form-group"><label>Camera${brandImg}</label><input value="${esc(c.camera_name)}" data-field="camera_name" data-type="camera" placeholder="e.g. Canon R5"></div></div>
+      <div class="full"><div class="form-group"><label>Camera</label><input value="${esc(c.camera_name)}" data-field="camera_name" data-type="camera" placeholder="e.g. Canon R5"></div></div>
       <div class="form-group"><label>Label</label><input value="${esc(c.label)}" data-field="label" data-type="camera" placeholder="BTS"></div>
       <div class="form-group"><label>Format</label><input value="${esc(c.codec)}" data-field="codec" data-type="camera" placeholder="RAW / JPEG" class="mono"></div>
       <div class="form-group"><label>Notes</label><input value="${esc(c.notes)}" data-field="notes" data-type="camera"></div>`;
   } else {
     fields = `
-      <div class="full"><div class="form-group"><label>Source${brandImg}</label><input value="${esc(c.camera_name)}" data-field="camera_name" data-type="camera" placeholder="e.g. Screen Recording"></div></div>
+      <div class="full"><div class="form-group"><label>Source</label><input value="${esc(c.camera_name)}" data-field="camera_name" data-type="camera" placeholder="e.g. Screen Recording"></div></div>
       <div class="form-group"><label>Label</label><input value="${esc(c.label)}" data-field="label" data-type="camera"></div>
       <div class="form-group"><label>Resolution</label><input value="${esc(c.resolution)}" data-field="resolution" data-type="camera"></div>
       <div class="form-group"><label>Codec</label><input value="${esc(c.codec)}" data-field="codec" data-type="camera" class="mono"></div>
@@ -651,7 +648,15 @@ function cameraCard(c) {
   }
 
   return `<div class="admin-camera-card" data-id="${c.id}">
-    <button class="delete-cam" onclick="deleteCamera(${c.id})">&times;</button>
+    ${brand ? `<img class="brand-logo" src="/icons/cameras/${brand}.svg" alt="">` : ''}
+    <div class="cam-menu-wrap">
+      <button class="ellipsis-btn" onclick="toggleMenu(this)">&#8943;</button>
+      <div class="ellipsis-menu">
+        <button onclick="duplicateCamera(${c.id})">Duplicate</button>
+        <div class="menu-divider"></div>
+        <button class="danger" onclick="deleteCamera(${c.id})">Delete Source</button>
+      </div>
+    </div>
     ${type !== 'camera' ? `<span class="source-type-badge">${typeLabels[type]}</span>` : ''}
     <div class="cam-form">${fields}</div>
   </div>`;
@@ -726,7 +731,15 @@ async function addCamera(dayId, sourceType = 'camera') {
 }
 
 async function deleteCamera(id) {
+  closeAllMenus();
   await api('/cameras/' + id, { method: 'DELETE' });
+  render();
+}
+
+async function duplicateCamera(id) {
+  closeAllMenus();
+  await api('/cameras/' + id + '/duplicate', { method: 'POST' });
+  toast('Source duplicated');
   render();
 }
 

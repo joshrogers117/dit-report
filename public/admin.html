@@ -130,7 +130,7 @@ input.invalid { border-color: var(--danger); }
 /* Camera cards in admin */
 .admin-camera-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
 .admin-camera-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 20px; position: relative; overflow: hidden; }
-.admin-camera-card .brand-logo { position: absolute; top: 14px; right: 44px; height: 20px; width: auto; opacity: 0.25; pointer-events: none; filter: brightness(0) invert(1); }
+.admin-camera-card .brand-logo { position: absolute; top: 14px; right: 52px; height: 20px; width: auto; opacity: 0.25; pointer-events: none; filter: brightness(0) invert(1); }
 .admin-camera-card .source-type-badge { display: inline-block; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; padding: 2px 8px; border-radius: 4px; background: rgba(232,118,43,.12); color: var(--accent); margin-bottom: 8px; }
 .source-picker { position: fixed; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); min-width: 180px; z-index: 200; overflow: hidden; }
 .source-picker button { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: none; color: var(--text); padding: 10px 16px; font-size: 13px; cursor: pointer; font-family: inherit; }
@@ -577,7 +577,6 @@ async function renderDay(app, projectId, dayId) {
         </table>
         <div style="padding:8px 12px" class="btn-group">
           <button class="btn btn-sm" onclick="addRoll(${dayId})">+ Add Roll</button>
-          <button class="btn btn-sm" onclick="addBreak(${dayId})">+ Add Break/Lunch</button>
         </div>
         <div class="totals-bar" id="dayTotals"></div>
       </div>
@@ -709,7 +708,7 @@ function showSourcePicker(dayId, el) {
   const picker = document.createElement('div');
   picker.className = 'source-picker';
   picker.innerHTML = `
-    <button onclick="addCamera(${dayId}, 'camera')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><circle cx="12" cy="10" r="3"/></svg> Camera</button>
+    <button onclick="addCamera(${dayId}, 'camera')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H9a1 1 0 0 0-1 1v1H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-4V3a1 1 0 0 0-1-1z"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1.5"/></svg> Camera</button>
     <button onclick="addCamera(${dayId}, 'audio')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg> Audio</button>
     <button onclick="addCamera(${dayId}, 'photo')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg> Photos</button>
     <button onclick="addCamera(${dayId}, 'misc')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> Misc Video</button>

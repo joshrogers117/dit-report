@@ -437,12 +437,15 @@ router.get('/projects/:id/export/pdf', async (request, env) => {
   try {
     browser = await puppeteer.launch(env.BROWSER);
     const page = await browser.newPage();
+    await page.setViewport({ width: 1122, height: 800 }); // A4 landscape width at 96dpi
     await page.setContent(html, { waitUntil: 'load' });
+    // Measure actual content height for a single continuous page
+    const contentHeight = await page.evaluate(() => document.body.scrollHeight);
     const pdf = await page.pdf({
-      format: 'A4',
-      landscape: true,
+      width: '11.69in',
+      height: (contentHeight / 96 + 1) + 'in', // convert px to inches + padding
       printBackground: true,
-      preferCSSPageSize: true
+      margin: { top: '0.4in', bottom: '0.4in', left: '0.5in', right: '0.5in' }
     });
     await browser.close();
 

@@ -5,6 +5,9 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Root redirect
+app.get('/', (req, res) => res.redirect('/admin.html'));
+
 // API routes
 app.use('/api/projects', require('./routes/projects'));
 app.use('/api', require('./routes/days'));

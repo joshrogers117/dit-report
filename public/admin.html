@@ -29,13 +29,45 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI'
 
 /* Project cards */
 .projects-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
-.project-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; cursor: pointer; transition: border-color .15s, transform .15s; box-shadow: var(--shadow); }
+.project-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; transition: border-color .15s, transform .15s; box-shadow: var(--shadow); position: relative; }
 .project-card:hover { border-color: var(--accent); transform: translateY(-2px); }
 .project-card h3 { font-size: 18px; margin-bottom: 4px; color: var(--text); text-transform: none; letter-spacing: 0; }
 .project-card .meta { color: var(--text-dim); font-size: 13px; margin-bottom: 12px; }
 .project-card .stats { display: flex; gap: 16px; font-size: 12px; color: var(--text-dim); }
 .project-card .stats strong { color: var(--text); }
-.project-card .actions { margin-top: 12px; display: flex; gap: 8px; }
+.project-card .card-actions { display: flex; gap: 8px; margin-top: 14px; align-items: center; }
+.project-card .edit-link { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); font-size: 13px; font-weight: 500; cursor: pointer; text-decoration: none; }
+.project-card .edit-link:hover { text-decoration: underline; }
+.project-card .edit-link svg { width: 14px; height: 14px; }
+.project-card .view-link { display: inline-flex; align-items: center; gap: 6px; color: var(--text-dim); font-size: 13px; font-weight: 500; cursor: pointer; text-decoration: none; }
+.project-card .view-link:hover { color: var(--text); }
+
+/* Ellipsis menu */
+.ellipsis-wrap { position: relative; margin-left: auto; }
+.ellipsis-btn { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 20px; padding: 4px 8px; border-radius: 4px; line-height: 1; letter-spacing: 2px; }
+.ellipsis-btn:hover { background: var(--surface2); color: var(--text); }
+.ellipsis-menu { position: absolute; right: 0; top: 100%; margin-top: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); min-width: 160px; z-index: 50; display: none; overflow: hidden; }
+.ellipsis-menu.open { display: block; }
+.ellipsis-menu button { display: block; width: 100%; text-align: left; background: none; border: none; color: var(--text); padding: 10px 16px; font-size: 13px; cursor: pointer; font-family: inherit; }
+.ellipsis-menu button:hover { background: var(--surface2); }
+.ellipsis-menu button.danger { color: var(--danger); }
+.ellipsis-menu button.danger:hover { background: rgba(248,81,73,.08); }
+.ellipsis-menu .menu-divider { height: 1px; background: var(--border); margin: 4px 0; }
+
+/* Section label */
+.dashboard-section { margin-bottom: 32px; }
+.dashboard-section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.dashboard-section-header h2 { font-size: 16px; font-weight: 700; white-space: nowrap; }
+.dashboard-section-header .section-count { background: var(--surface2); color: var(--text-dim); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; }
+.dashboard-section-header::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.dashboard-section-header p { color: var(--text-dim); font-size: 13px; }
+
+/* Completed projects */
+.project-card.archived { opacity: .7; }
+.project-card.archived:hover { opacity: 1; }
+.status-badge { display: inline-block; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; padding: 2px 8px; border-radius: 4px; }
+.status-badge.active { background: rgba(63,185,80,.12); color: var(--accent2); }
+.status-badge.completed { background: rgba(88,166,255,.1); color: var(--accent); }
 
 /* Day cards */
 .days-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
@@ -185,26 +217,98 @@ async function render() {
 // ===== Dashboard =====
 async function renderDashboard(app) {
   const projects = await api('/projects');
+  const active = projects.filter(p => !p.archived);
+  const completed = projects.filter(p => p.archived);
+
   app.innerHTML = `
     <div class="nav"><h1>DIT Report Manager</h1><div class="spacer"></div>
       <button class="btn btn-primary" onclick="createProject()">+ New Project</button></div>
     <div class="container">
-      ${projects.length === 0 ? '<div class="card" style="text-align:center;padding:48px"><h2 style="margin-bottom:8px">No projects yet</h2><p style="color:var(--text-dim);margin-bottom:16px">Create your first project to get started.</p><button class="btn btn-primary" onclick="createProject()">+ New Project</button></div>' :
-      `<div class="projects-grid">${projects.map(p => `
-        <div class="project-card" onclick="navigate('#/project/${p.id}')">
-          <h3>${esc(p.title)}</h3>
-          <div class="meta">${esc(p.production_company || '')}${p.client ? ' &bull; ' + esc(p.client) : ''}</div>
-          <div class="stats">
-            <span><strong>${p.dayCount || 0}</strong> days</span>
-            <span><strong>${fmtNum(p.totals?.gb || 0)}</strong> GB</span>
-            <span><strong>${p.totals?.duration?.substring(0,8) || '00:00:00'}</strong></span>
-            <span><strong>${fmtInt(p.totals?.frames || 0)}</strong> frames</span>
+      ${projects.length === 0 ? `
+        <div class="card" style="text-align:center;padding:48px">
+          <h2 style="margin-bottom:8px">No projects yet</h2>
+          <p style="color:var(--text-dim);margin-bottom:16px">Create your first DIT offload report project to get started.</p>
+          <button class="btn btn-primary" onclick="createProject()">+ New Project</button>
+        </div>` : `
+
+        <!-- Active Projects -->
+        <div class="dashboard-section">
+          <div class="dashboard-section-header">
+            <h2>Active Projects</h2>
+            <span class="section-count">${active.length}</span>
           </div>
-          <div class="actions" onclick="event.stopPropagation()">
-            <button class="btn btn-sm btn-danger" onclick="deleteProject(${p.id})">Delete</button>
+          ${active.length === 0 ? `<div class="card" style="text-align:center;padding:32px;color:var(--text-dim)">No active projects. Create a new one or reactivate a completed project.</div>` :
+          `<div class="projects-grid">${active.map(p => projectCard(p, false)).join('')}</div>`}
+        </div>
+
+        <!-- Completed Projects -->
+        <div class="dashboard-section">
+          <div class="dashboard-section-header">
+            <h2>Completed Projects</h2>
+            <span class="section-count">${completed.length}</span>
           </div>
-        </div>`).join('')}</div>`}
+          ${completed.length === 0 ? `<div class="card" style="text-align:center;padding:32px;color:var(--text-dim)">Projects you mark as complete will appear here for viewing reports.</div>` :
+          `<div class="projects-grid">${completed.map(p => projectCard(p, true)).join('')}</div>`}
+        </div>
+      `}
     </div>`;
+
+  // Close menus on outside click
+  document.addEventListener('click', closeAllMenus);
+}
+
+function projectCard(p, isArchived) {
+  const editIcon = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 1.5l3 3-9 9H2.5v-3l9-9z"/><path d="M10 3l3 3"/></svg>';
+  const viewIcon = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z"/><circle cx="8" cy="8" r="2"/></svg>';
+
+  return `<div class="project-card ${isArchived ? 'archived' : ''}">
+    <div style="display:flex;align-items:start;gap:8px">
+      <div style="flex:1">
+        <h3>${esc(p.title)}</h3>
+        <div class="meta">${esc(p.production_company || '')}${p.client ? ' &bull; ' + esc(p.client) : ''}</div>
+      </div>
+      <span class="status-badge ${isArchived ? 'completed' : 'active'}">${isArchived ? 'Complete' : 'Active'}</span>
+    </div>
+    <div class="stats">
+      <span><strong>${p.dayCount || 0}</strong> days</span>
+      <span><strong>${fmtNum(p.totals?.gb || 0)}</strong> GB</span>
+      <span><strong>${p.totals?.duration?.substring(0,8) || '00:00:00'}</strong></span>
+      <span><strong>${fmtInt(p.totals?.frames || 0)}</strong> frames</span>
+    </div>
+    <div class="card-actions">
+      ${isArchived ? `
+        <a class="view-link" onclick="navigate('#/project/${p.id}')">${viewIcon} View Reports</a>
+      ` : `
+        <a class="edit-link" onclick="navigate('#/project/${p.id}')">${editIcon} Edit Project</a>
+      `}
+      <div class="ellipsis-wrap">
+        <button class="ellipsis-btn" onclick="event.stopPropagation(); toggleMenu(this)">&#8943;</button>
+        <div class="ellipsis-menu">
+          <button onclick="exportHTML(${p.id})">Export HTML</button>
+          <button onclick="exportPDF(${p.id})">Export PDF</button>
+          <div class="menu-divider"></div>
+          ${isArchived ? `
+            <button onclick="archiveProject(${p.id}, false)">Reactivate Project</button>
+          ` : `
+            <button onclick="archiveProject(${p.id}, true)">Mark as Complete</button>
+          `}
+          <div class="menu-divider"></div>
+          <button class="danger" onclick="deleteProject(${p.id})">Delete Project</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function toggleMenu(btn) {
+  const menu = btn.nextElementSibling;
+  const wasOpen = menu.classList.contains('open');
+  closeAllMenus();
+  if (!wasOpen) menu.classList.add('open');
+}
+
+function closeAllMenus() {
+  document.querySelectorAll('.ellipsis-menu.open').forEach(m => m.classList.remove('open'));
 }
 
 async function createProject() {
@@ -215,8 +319,16 @@ async function createProject() {
 }
 
 async function deleteProject(id) {
-  if (!confirm('Delete this project and all its data?')) return;
+  closeAllMenus();
+  if (!confirm('Delete this project and all its data? This cannot be undone.')) return;
   await api('/projects/' + id, { method: 'DELETE' });
+  render();
+}
+
+async function archiveProject(id, archived) {
+  closeAllMenus();
+  await api('/projects/' + id, { method: 'PUT', body: { archived: archived ? 1 : 0 } });
+  toast(archived ? 'Project marked as complete' : 'Project reactivated');
   render();
 }
 

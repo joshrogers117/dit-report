@@ -52,7 +52,7 @@ router.get('/:id', (req, res) => {
 
 // Update project
 router.put('/:id', (req, res) => {
-  const fields = ['title', 'production_company', 'client', 'director', 'producer', 'dp', 'first_ac', 'dit_name', 'dit_email', 'dit_phone'];
+  const fields = ['title', 'production_company', 'client', 'director', 'producer', 'dp', 'first_ac', 'dit_name', 'dit_email', 'dit_phone', 'archived'];
   const updates = [];
   const values = [];
   for (const f of fields) {

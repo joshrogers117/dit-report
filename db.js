@@ -76,4 +76,11 @@ db.exec(`
   );
 `);
 
+// Migrations
+try {
+  db.exec(`ALTER TABLE projects ADD COLUMN archived INTEGER DEFAULT 0`);
+} catch (e) {
+  // Column already exists
+}
+
 module.exports = db;

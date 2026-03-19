@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS benchmarks (
 CREATE TABLE IF NOT EXISTS cameras (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   day_id INTEGER NOT NULL REFERENCES shoot_days(id) ON DELETE CASCADE,
+  source_type TEXT DEFAULT 'camera',
   camera_name TEXT NOT NULL DEFAULT '',
   resolution TEXT DEFAULT '',
   codec TEXT DEFAULT '',

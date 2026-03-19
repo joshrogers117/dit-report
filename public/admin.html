@@ -129,7 +129,12 @@ input.invalid { border-color: var(--danger); }
 
 /* Camera cards in admin */
 .admin-camera-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
-.admin-camera-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 20px; position: relative; }
+.admin-camera-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 20px; position: relative; overflow: hidden; }
+.admin-camera-card .brand-logo { position: absolute; top: 12px; right: 12px; width: 48px; height: 48px; opacity: 0.12; pointer-events: none; filter: brightness(0) invert(1); }
+.admin-camera-card .source-type-badge { display: inline-block; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; padding: 2px 8px; border-radius: 4px; background: rgba(232,118,43,.12); color: var(--accent); margin-bottom: 8px; }
+.source-picker { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); min-width: 180px; z-index: 50; overflow: hidden; }
+.source-picker button { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: none; color: var(--text); padding: 10px 16px; font-size: 13px; cursor: pointer; font-family: inherit; }
+.source-picker button:hover { background: var(--surface2); }
 .admin-camera-card .delete-cam { position: absolute; top: 8px; right: 8px; background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 16px; padding: 4px 8px; }
 .admin-camera-card .delete-cam:hover { color: var(--danger); }
 .admin-camera-card .cam-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -551,12 +556,12 @@ async function renderDay(app, projectId, dayId) {
         <div style="padding:8px 12px"><button class="btn btn-sm" onclick="addBenchmark(${dayId})">+ Add Drive</button></div>
       </div>
 
-      <!-- Cameras -->
-      <div class="section-title"><h3>Camera Settings</h3></div>
+      <!-- Sources -->
+      <div class="section-title"><h3>Media Sources</h3></div>
       <div class="admin-camera-cards" id="cameraCards">
         ${day.cameras.map(c => cameraCard(c)).join('')}
-        <div class="admin-camera-card" style="border-style:dashed;display:flex;align-items:center;justify-content:center;cursor:pointer;min-height:120px" onclick="addCamera(${dayId})">
-          <span style="color:var(--text-dim);font-size:14px">+ Add Camera</span>
+        <div class="admin-camera-card" style="border-style:dashed;display:flex;align-items:center;justify-content:center;cursor:pointer;min-height:120px" onclick="showSourcePicker(${dayId}, this)">
+          <span style="color:var(--text-dim);font-size:14px">+ Add Source</span>
         </div>
       </div>
 
@@ -595,8 +600,8 @@ async function renderDay(app, projectId, dayId) {
 function benchRow(b) {
   return `<tr data-id="${b.id}">
     <td><input value="${esc(b.drive_name)}" data-field="drive_name" class="mono"></td>
-    <td><input type="number" step="0.1" value="${b.write_speed}" data-field="write_speed" class="mono" style="width:90px"></td>
-    <td><input type="number" step="0.1" value="${b.read_speed}" data-field="read_speed" class="mono" style="width:90px"></td>
+    <td><input value="${b.write_speed}" data-field="write_speed" class="mono" style="width:90px"></td>
+    <td><input value="${b.read_speed}" data-field="read_speed" class="mono" style="width:90px"></td>
     <td><input value="${esc(b.capacity)}" data-field="capacity" style="width:70px"></td>
     <td><input value="${esc(b.format)}" data-field="format" class="mono" style="width:70px"></td>
     <td><input value="${esc(b.notes)}" data-field="notes"></td>
@@ -605,9 +610,13 @@ function benchRow(b) {
 }
 
 function cameraCard(c) {
-  return `<div class="admin-camera-card" data-id="${c.id}">
-    <button class="delete-cam" onclick="deleteCamera(${c.id})">&times;</button>
-    <div class="cam-form">
+  const type = c.source_type || 'camera';
+  const brand = detectBrand(c.camera_name);
+  const typeLabels = { camera: 'Camera', audio: 'Audio', photo: 'Photo', misc: 'Misc Video' };
+
+  let fields = '';
+  if (type === 'camera') {
+    fields = `
       <div class="full"><div class="form-group"><label>Camera</label><input value="${esc(c.camera_name)}" data-field="camera_name" data-type="camera"></div></div>
       <div class="form-group"><label>Label</label><input value="${esc(c.label)}" data-field="label" data-type="camera" placeholder="ACAM"></div>
       <div class="form-group"><label>Resolution</label><input value="${esc(c.resolution)}" data-field="resolution" data-type="camera"></div>
@@ -615,8 +624,35 @@ function cameraCard(c) {
       <div class="form-group"><label>Colorspace</label><input value="${esc(c.colorspace)}" data-field="colorspace" data-type="camera" class="mono"></div>
       <div class="form-group"><label>LUT</label><input value="${esc(c.lut)}" data-field="lut" data-type="camera" class="mono"></div>
       <div class="form-group"><label>FPS</label><input value="${esc(c.fps)}" data-field="fps" data-type="camera"></div>
-      <div class="form-group"><label>Audio</label><input value="${esc(c.audio)}" data-field="audio" data-type="camera" placeholder="e.g. Onboard Scratch"></div>
-    </div>
+      <div class="form-group"><label>Audio</label><input value="${esc(c.audio)}" data-field="audio" data-type="camera" placeholder="e.g. Onboard Scratch"></div>`;
+  } else if (type === 'audio') {
+    fields = `
+      <div class="full"><div class="form-group"><label>Device</label><input value="${esc(c.camera_name)}" data-field="camera_name" data-type="camera" placeholder="e.g. Sound Devices 888"></div></div>
+      <div class="form-group"><label>Label</label><input value="${esc(c.label)}" data-field="label" data-type="camera" placeholder="SOUND"></div>
+      <div class="form-group"><label>Sample Rate</label><input value="${esc(c.resolution)}" data-field="resolution" data-type="camera" placeholder="48kHz" class="mono"></div>
+      <div class="form-group"><label>Bit Depth</label><input value="${esc(c.codec)}" data-field="codec" data-type="camera" placeholder="24-bit" class="mono"></div>
+      <div class="form-group"><label>Channels</label><input value="${esc(c.fps)}" data-field="fps" data-type="camera" placeholder="8"></div>
+      <div class="form-group"><label>Notes</label><input value="${esc(c.notes)}" data-field="notes" data-type="camera"></div>`;
+  } else if (type === 'photo') {
+    fields = `
+      <div class="full"><div class="form-group"><label>Camera</label><input value="${esc(c.camera_name)}" data-field="camera_name" data-type="camera" placeholder="e.g. Canon R5"></div></div>
+      <div class="form-group"><label>Label</label><input value="${esc(c.label)}" data-field="label" data-type="camera" placeholder="BTS"></div>
+      <div class="form-group"><label>Format</label><input value="${esc(c.codec)}" data-field="codec" data-type="camera" placeholder="RAW / JPEG" class="mono"></div>
+      <div class="form-group"><label>Notes</label><input value="${esc(c.notes)}" data-field="notes" data-type="camera"></div>`;
+  } else {
+    fields = `
+      <div class="full"><div class="form-group"><label>Source</label><input value="${esc(c.camera_name)}" data-field="camera_name" data-type="camera" placeholder="e.g. Screen Recording"></div></div>
+      <div class="form-group"><label>Label</label><input value="${esc(c.label)}" data-field="label" data-type="camera"></div>
+      <div class="form-group"><label>Resolution</label><input value="${esc(c.resolution)}" data-field="resolution" data-type="camera"></div>
+      <div class="form-group"><label>Codec</label><input value="${esc(c.codec)}" data-field="codec" data-type="camera" class="mono"></div>
+      <div class="form-group"><label>Notes</label><input value="${esc(c.notes)}" data-field="notes" data-type="camera"></div>`;
+  }
+
+  return `<div class="admin-camera-card" data-id="${c.id}">
+    ${brand ? `<img class="brand-logo" src="/icons/cameras/${brand}.svg" alt="">` : ''}
+    <button class="delete-cam" onclick="deleteCamera(${c.id})">&times;</button>
+    ${type !== 'camera' ? `<span class="source-type-badge">${typeLabels[type]}</span>` : ''}
+    <div class="cam-form">${fields}</div>
   </div>`;
 }
 
@@ -632,7 +668,7 @@ function rollRow(r) {
   return `<tr data-id="${r.id}">
     <td><input value="${esc(r.roll_name)}" data-field="roll_name" class="mono" style="width:130px"></td>
     <td><input value="${esc(r.card_serial)}" data-field="card_serial" class="mono" style="width:120px"></td>
-    <td><input type="number" step="0.01" value="${r.gb}" data-field="gb" class="mono" style="width:90px"></td>
+    <td><input value="${r.gb}" data-field="gb" class="mono" style="width:90px"></td>
     <td><input value="${esc(r.duration_tc)}" data-field="duration_tc" class="mono" style="width:110px" placeholder="HH:MM:SS:FF"></td>
     <td style="text-align:center"><input type="checkbox" data-field="master" ${r.master ? 'checked' : ''}></td>
     <td style="text-align:center"><input type="checkbox" data-field="backup" ${r.backup ? 'checked' : ''}></td>
@@ -654,9 +690,35 @@ async function deleteBenchmark(id) {
   render();
 }
 
-// Cameras
-async function addCamera(dayId) {
-  const { id } = await api('/days/' + dayId + '/cameras', { method: 'POST', body: { camera_name: 'New Camera' } });
+// Sources
+const sourceTypeDefaults = {
+  camera: { camera_name: 'New Camera' },
+  audio: { camera_name: 'New Audio Device' },
+  photo: { camera_name: 'New Camera' },
+  misc: { camera_name: 'New Source' },
+};
+
+function showSourcePicker(dayId, el) {
+  // Remove any existing picker
+  document.querySelectorAll('.source-picker').forEach(p => p.remove());
+  const picker = document.createElement('div');
+  picker.className = 'source-picker';
+  picker.innerHTML = `
+    <button onclick="addCamera(${dayId}, 'camera')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><circle cx="12" cy="10" r="3"/></svg> Camera</button>
+    <button onclick="addCamera(${dayId}, 'audio')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg> Audio</button>
+    <button onclick="addCamera(${dayId}, 'photo')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg> Photos</button>
+    <button onclick="addCamera(${dayId}, 'misc')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> Misc Video</button>
+  `;
+  el.style.position = 'relative';
+  el.appendChild(picker);
+  const close = (e) => { if (!picker.contains(e.target) && e.target !== el) { picker.remove(); document.removeEventListener('click', close); } };
+  setTimeout(() => document.addEventListener('click', close), 0);
+}
+
+async function addCamera(dayId, sourceType = 'camera') {
+  document.querySelectorAll('.source-picker').forEach(p => p.remove());
+  const defaults = sourceTypeDefaults[sourceType] || sourceTypeDefaults.camera;
+  const { id } = await api('/days/' + dayId + '/cameras', { method: 'POST', body: { ...defaults, source_type: sourceType } });
   render();
 }
 
@@ -709,8 +771,9 @@ document.addEventListener('input', e => {
   const field = e.target.dataset.field;
   if (!field) return;
 
+  const numericFields = ['write_speed', 'read_speed', 'gb'];
   let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-  if (e.target.type === 'number') value = parseFloat(value) || 0;
+  if (e.target.type === 'number' || numericFields.includes(field)) value = parseFloat(value) || 0;
 
   // Validate timecode
   if (field === 'duration_tc') {
@@ -757,6 +820,23 @@ function sumTC(tcs) {
 function esc(s) {
   if (!s && s !== 0) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function detectBrand(name) {
+  const n = (name || '').toUpperCase();
+  const brands = {
+    red: ['V-RAPTOR','KOMODO','RED ONE','EPIC-X','EPIC-W','EPIC-M','SCARLET-W','SCARLET-X','RAVEN','WEAPON','MONSTRO','HELIUM','GEMINI','DRAGON','RANGER','DSMC','RED EPIC','RED SCARLET','RED RAVEN','RED RANGER','KOMODO-X'],
+    arri: ['ALEXA','AMIRA','ARRICAM','ARRIFLEX'],
+    blackmagic: ['URSA','BMPCC','PYXIS','POCKET CINEMA','MICRO CINEMA','BLACKMAGIC'],
+    sony: ['VENICE','BURANO','FX3','FX30','FX6','FX9','FR7','A7S','A7R','A7C','A7 IV','A7IV','A9 ','A1 ','F5 ','F55','F65','FS5','FS7','FS100','FS700','CINEALTA','HDW-F'],
+    canon: ['C70','C80','C100','C200','C300','C400','C500','C700','R5 C','R5C','EOS C','CINEMA EOS','1D C','1DC'],
+    dji: ['RONIN','ZENMUSE','INSPIRE','MAVIC','OSMO','AVATA','AIR 2S','MINI 3','MINI 4','DJI ACTION'],
+    nikon: ['NIKON Z','Z5','Z6','Z7','Z8','Z9','Z30','Z50',' ZR',' ZF',' ZFC'],
+    apple: ['IPHONE','IPAD'],
+  };
+  for (const [brand, keywords] of Object.entries(brands))
+    if (keywords.some(k => n.includes(k))) return brand;
+  return null;
 }
 
 // Initial render

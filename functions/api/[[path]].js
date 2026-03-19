@@ -350,6 +350,16 @@ router.put('/cameras/:id', async (request, env) => {
   return Response.json({ ok: true });
 });
 
+router.post('/cameras/:id/duplicate', async (request, env) => {
+  const src = await env.DB.prepare('SELECT * FROM cameras WHERE id = ?').bind(request.params.id).first();
+  if (!src) return Response.json({ error: 'Not found' }, { status: 404 });
+  const maxOrder = await env.DB.prepare('SELECT COALESCE(MAX(sort_order), 0) as m FROM cameras WHERE day_id = ?').bind(src.day_id).first();
+  const result = await env.DB.prepare(
+    'INSERT INTO cameras (day_id, source_type, camera_name, resolution, codec, colorspace, lut, fps, audio, label, notes, sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)'
+  ).bind(src.day_id, src.source_type || 'camera', src.camera_name, src.resolution, src.codec, src.colorspace, src.lut, src.fps, src.audio || '', src.label, src.notes, maxOrder.m + 1).run();
+  return Response.json({ id: result.meta.last_row_id });
+});
+
 router.delete('/cameras/:id', async (request, env) => {
   await env.DB.prepare('DELETE FROM cameras WHERE id = ?').bind(request.params.id).run();
   return Response.json({ ok: true });

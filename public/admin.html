@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DIT Report - Admin</title>
+<style>
+:root {
+  --bg: #0e1117; --surface: #161b22; --surface2: #1c2333; --border: #30363d;
+  --text: #e6edf3; --text-dim: #8b949e; --accent: #58a6ff; --accent2: #3fb950;
+  --accent3: #d29922; --danger: #f85149; --radius: 10px; --shadow: 0 2px 12px rgba(0,0,0,.4);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; min-height: 100vh; }
+.container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+/* Nav */
+.nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+.nav h1 { font-size: 16px; font-weight: 700; }
+.nav .breadcrumb { color: var(--text-dim); font-size: 13px; }
+.nav .breadcrumb a { color: var(--accent); text-decoration: none; }
+.nav .breadcrumb a:hover { text-decoration: underline; }
+.nav .spacer { flex: 1; }
+
+/* Cards */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; box-shadow: var(--shadow); }
+.card h2 { font-size: 18px; font-weight: 700; margin-bottom: 12px; }
+.card h3 { font-size: 14px; font-weight: 600; margin-bottom: 8px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+
+/* Project cards */
+.projects-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+.project-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; cursor: pointer; transition: border-color .15s, transform .15s; box-shadow: var(--shadow); }
+.project-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.project-card h3 { font-size: 18px; margin-bottom: 4px; color: var(--text); text-transform: none; letter-spacing: 0; }
+.project-card .meta { color: var(--text-dim); font-size: 13px; margin-bottom: 12px; }
+.project-card .stats { display: flex; gap: 16px; font-size: 12px; color: var(--text-dim); }
+.project-card .stats strong { color: var(--text); }
+.project-card .actions { margin-top: 12px; display: flex; gap: 8px; }
+
+/* Day cards */
+.days-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.day-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 16px; cursor: pointer; transition: border-color .15s; }
+.day-card:hover { border-color: var(--accent); }
+.day-card h4 { font-size: 16px; margin-bottom: 4px; }
+.day-card .day-meta { color: var(--text-dim); font-size: 13px; }
+
+/* Forms */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+.form-grid.cols-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+.form-group { display: flex; flex-direction: column; gap: 4px; }
+.form-group.full { grid-column: 1 / -1; }
+.form-group label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); font-weight: 600; }
+input, select, textarea {
+  background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+  padding: 8px 12px; border-radius: 6px; font-size: 13px; font-family: inherit;
+  transition: border-color .15s;
+}
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+input.mono, .mono-input { font-family: 'SF Mono','Menlo', monospace; font-size: 12px; }
+input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent2); cursor: pointer; padding: 0; }
+input.invalid { border-color: var(--danger); }
+
+/* Buttons */
+.btn { background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all .15s; font-family: inherit; }
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-primary:hover { opacity: .9; color: #fff; }
+.btn-danger { color: var(--danger); }
+.btn-danger:hover { background: rgba(248,81,73,.1); border-color: var(--danger); }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Tables */
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.data-table th { text-align: left; padding: 8px 12px; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); font-weight: 600; border-bottom: 1px solid var(--border); background: var(--surface2); }
+.data-table td { padding: 6px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.data-table tr:last-child td { border-bottom: none; }
+.data-table input { width: 100%; min-width: 60px; }
+.data-table input[type="checkbox"] { width: 18px; min-width: 18px; }
+.data-table .row-actions { white-space: nowrap; }
+
+/* Section headers */
+.section-title { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; margin-top: 24px; }
+.section-title h3 { margin: 0; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-dim); }
+.section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* Camera cards in admin */
+.admin-camera-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
+.admin-camera-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 20px; position: relative; }
+.admin-camera-card .delete-cam { position: absolute; top: 8px; right: 8px; background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 16px; padding: 4px 8px; }
+.admin-camera-card .delete-cam:hover { color: var(--danger); }
+.admin-camera-card .cam-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.admin-camera-card .cam-form .full { grid-column: 1 / -1; }
+.admin-camera-card .cam-form .form-group label { margin-bottom: 4px; }
+.admin-camera-card .cam-form input { width: 100%; }
+
+/* Toast */
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--accent2); color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 500; opacity: 0; transform: translateY(10px); transition: all .3s; pointer-events: none; z-index: 100; }
+.toast.show { opacity: 1; transform: translateY(0); }
+
+/* Totals bar */
+.totals-bar { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 20px; display: flex; gap: 32px; font-size: 13px; margin-top: 12px; }
+.totals-bar .t-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); font-weight: 600; }
+.totals-bar .t-value { font-weight: 700; font-family: 'SF Mono', monospace; }
+
+/* Summary row */
+.summary-row td { font-weight: 700; background: var(--surface2); border-top: 2px solid var(--border); }
+
+@media (max-width: 768px) {
+  .form-grid { grid-template-columns: 1fr; }
+  .form-grid.cols-3, .form-grid.cols-4 { grid-template-columns: 1fr 1fr; }
+  .projects-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '/api';
+
+// ===== Utilities =====
+async function api(path, opts = {}) {
+  const res = await fetch(API + path, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', ...opts.headers },
+    body: opts.body ? JSON.stringify(opts.body) : undefined
+  });
+  return res.json();
+}
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+function navigate(hash) {
+  window.location.hash = hash;
+}
+
+function fmtNum(n) { return Number(n||0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+function fmtInt(n) { return Number(n||0).toLocaleString('en-US'); }
+
+function formatDate(d) {
+  if (!d) return '';
+  return new Date(d+'T00:00:00').toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+}
+
+// Debounce for auto-save
+function debounce(fn, ms = 500) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+
+// ===== Router =====
+function getRoute() {
+  const h = window.location.hash.slice(1) || '/';
+  const projMatch = h.match(/^\/project\/(\d+)$/);
+  const dayMatch = h.match(/^\/project\/(\d+)\/day\/(\d+)$/);
+  if (dayMatch) return { page: 'day', projectId: dayMatch[1], dayId: dayMatch[2] };
+  if (projMatch) return { page: 'project', projectId: projMatch[1] };
+  return { page: 'dashboard' };
+}
+
+window.addEventListener('hashchange', render);
+
+// ===== Render =====
+async function render() {
+  const route = getRoute();
+  const app = document.getElementById('app');
+  try {
+    if (route.page === 'dashboard') await renderDashboard(app);
+    else if (route.page === 'project') await renderProject(app, route.projectId);
+    else if (route.page === 'day') await renderDay(app, route.projectId, route.dayId);
+  } catch (err) {
+    console.error(err);
+    app.innerHTML = '<div class="container"><div class="card"><h2>Error</h2><p>' + err.message + '</p></div></div>';
+  }
+}
+
+// ===== Dashboard =====
+async function renderDashboard(app) {
+  const projects = await api('/projects');
+  app.innerHTML = `
+    <div class="nav"><h1>DIT Report Manager</h1><div class="spacer"></div>
+      <button class="btn btn-primary" onclick="createProject()">+ New Project</button></div>
+    <div class="container">
+      ${projects.length === 0 ? '<div class="card" style="text-align:center;padding:48px"><h2 style="margin-bottom:8px">No projects yet</h2><p style="color:var(--text-dim);margin-bottom:16px">Create your first project to get started.</p><button class="btn btn-primary" onclick="createProject()">+ New Project</button></div>' :
+      `<div class="projects-grid">${projects.map(p => `
+        <div class="project-card" onclick="navigate('#/project/${p.id}')">
+          <h3>${esc(p.title)}</h3>
+          <div class="meta">${esc(p.production_company || '')}${p.client ? ' &bull; ' + esc(p.client) : ''}</div>
+          <div class="stats">
+            <span><strong>${p.dayCount || 0}</strong> days</span>
+            <span><strong>${fmtNum(p.totals?.gb || 0)}</strong> GB</span>
+            <span><strong>${p.totals?.duration?.substring(0,8) || '00:00:00'}</strong></span>
+            <span><strong>${fmtInt(p.totals?.frames || 0)}</strong> frames</span>
+          </div>
+          <div class="actions" onclick="event.stopPropagation()">
+            <button class="btn btn-sm btn-danger" onclick="deleteProject(${p.id})">Delete</button>
+          </div>
+        </div>`).join('')}</div>`}
+    </div>`;
+}
+
+async function createProject() {
+  const title = prompt('Project title:');
+  if (!title) return;
+  const { id } = await api('/projects', { method: 'POST', body: { title } });
+  navigate('#/project/' + id);
+}
+
+async function deleteProject(id) {
+  if (!confirm('Delete this project and all its data?')) return;
+  await api('/projects/' + id, { method: 'DELETE' });
+  render();
+}
+
+// ===== Project Page =====
+async function renderProject(app, id) {
+  const project = await api('/projects/' + id);
+
+  app.innerHTML = `
+    <div class="nav">
+      <h1>DIT Report Manager</h1>
+      <div class="breadcrumb"><a href="#/">Projects</a> / ${esc(project.title)}</div>
+      <div class="spacer"></div>
+      <div class="btn-group">
+        <button class="btn" onclick="exportHTML(${id})">Export HTML</button>
+        <button class="btn" onclick="exportPDF(${id})">Export PDF</button>
+      </div>
+    </div>
+    <div class="container">
+      <div class="card">
+        <h2>Project Info</h2>
+        <div class="form-grid" id="projectForm">
+          <div class="form-group"><label>Title</label><input name="title" value="${esc(project.title)}" data-field="title"></div>
+          <div class="form-group"><label>Production Company</label><input name="production_company" value="${esc(project.production_company)}" data-field="production_company"></div>
+          <div class="form-group"><label>Client</label><input name="client" value="${esc(project.client)}" data-field="client"></div>
+          <div class="form-group"><label>Director</label><input name="director" value="${esc(project.director)}" data-field="director"></div>
+          <div class="form-group"><label>Producer</label><input name="producer" value="${esc(project.producer)}" data-field="producer"></div>
+          <div class="form-group"><label>DP</label><input name="dp" value="${esc(project.dp)}" data-field="dp"></div>
+          <div class="form-group"><label>1st AC</label><input name="first_ac" value="${esc(project.first_ac)}" data-field="first_ac"></div>
+          <div class="form-group"><label>DIT / Data Manager</label><input name="dit_name" value="${esc(project.dit_name)}" data-field="dit_name"></div>
+          <div class="form-group"><label>Email</label><input name="dit_email" value="${esc(project.dit_email)}" data-field="dit_email"></div>
+          <div class="form-group"><label>Phone</label><input name="dit_phone" value="${esc(project.dit_phone)}" data-field="dit_phone"></div>
+        </div>
+      </div>
+
+      <div class="section-title"><h3>Shoot Days</h3></div>
+      <div class="btn-group" style="margin-bottom:12px">
+        <button class="btn btn-primary" onclick="addDay(${id})">+ Add Day</button>
+      </div>
+      <div class="days-grid">
+        ${project.days.map(d => `
+          <div class="day-card" onclick="navigate('#/project/${id}/day/${d.id}')">
+            <h4>Day ${String(d.day_number).padStart(2,'0')}</h4>
+            <div class="day-meta">${formatDate(d.date)}</div>
+            <div class="day-meta" style="margin-top:8px">
+              ${fmtNum(d.totals.gb)} GB &bull; ${d.totals.duration} &bull; ${fmtInt(d.totals.frames)} frames &bull; ${d.totals.rollCount} rolls
+            </div>
+            <div style="margin-top:8px" onclick="event.stopPropagation()">
+              <button class="btn btn-sm" onclick="cloneDay(${d.id})">Clone</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteDay(${d.id}, ${id})">Delete</button>
+            </div>
+          </div>`).join('')}
+      </div>
+
+      ${project.days.length > 0 ? `
+      <div class="totals-bar" style="margin-top:24px">
+        <div><div class="t-label">Total Data</div><div class="t-value">${fmtNum(project.totals.gb)} GB</div></div>
+        <div><div class="t-label">Total Duration</div><div class="t-value">${project.totals.duration}</div></div>
+        <div><div class="t-label">Total Frames</div><div class="t-value">${fmtInt(project.totals.frames)}</div></div>
+        <div><div class="t-label">Days</div><div class="t-value">${project.totals.dayCount}</div></div>
+        <div><div class="t-label">Rolls</div><div class="t-value">${project.totals.rollCount}</div></div>
+      </div>` : ''}
+    </div>`;
+
+  // Auto-save project fields
+  const saveProject = debounce(async (field, value) => {
+    await api('/projects/' + id, { method: 'PUT', body: { [field]: value } });
+    toast('Saved');
+  });
+
+  document.getElementById('projectForm').addEventListener('input', e => {
+    const field = e.target.dataset.field;
+    if (field) saveProject(field, e.target.value);
+  });
+}
+
+async function addDay(projectId) {
+  const date = prompt('Shoot date (YYYY-MM-DD):', new Date().toISOString().slice(0, 10));
+  if (!date) return;
+  const { id } = await api('/projects/' + projectId + '/days', { method: 'POST', body: { date } });
+  navigate('#/project/' + projectId + '/day/' + id);
+}
+
+async function cloneDay(dayId) {
+  const date = prompt('Date for the new cloned day (YYYY-MM-DD):', new Date().toISOString().slice(0, 10));
+  if (!date) return;
+  await api('/days/' + dayId + '/clone', { method: 'POST', body: { date } });
+  toast('Day cloned');
+  render();
+}
+
+async function deleteDay(dayId, projectId) {
+  if (!confirm('Delete this day and all its data?')) return;
+  await api('/days/' + dayId, { method: 'DELETE' });
+  render();
+}
+
+function exportHTML(id) { window.open(API + '/projects/' + id + '/export/html', '_blank'); }
+function exportPDF(id) { window.open(API + '/projects/' + id + '/export/pdf', '_blank'); }
+
+// ===== Day Page =====
+async function renderDay(app, projectId, dayId) {
+  const day = await api('/days/' + dayId);
+  const project = await api('/projects/' + projectId);
+
+  app.innerHTML = `
+    <div class="nav">
+      <h1>DIT Report Manager</h1>
+      <div class="breadcrumb">
+        <a href="#/">Projects</a> / <a href="#/project/${projectId}">${esc(project.title)}</a> / Day ${String(day.day_number).padStart(2,'0')}
+      </div>
+      <div class="spacer"></div>
+    </div>
+    <div class="container">
+      <div class="card">
+        <div class="form-grid">
+          <div class="form-group"><label>Day Number</label><input type="number" value="${day.day_number}" id="dayNumber"></div>
+          <div class="form-group"><label>Date</label><input type="date" value="${day.date}" id="dayDate"></div>
+        </div>
+      </div>
+
+      <!-- Benchmarks -->
+      <div class="section-title"><h3>Drive Benchmarks</h3></div>
+      <div class="card" style="overflow-x:auto">
+        <table class="data-table" id="benchTable">
+          <thead><tr>
+            <th>Drive Name</th><th>Write (MB/s)</th><th>Read (MB/s)</th><th>Capacity</th><th>Format</th><th>Notes</th><th></th>
+          </tr></thead>
+          <tbody>
+            ${day.benchmarks.map(b => benchRow(b)).join('')}
+          </tbody>
+        </table>
+        <div style="padding:8px 12px"><button class="btn btn-sm" onclick="addBenchmark(${dayId})">+ Add Drive</button></div>
+      </div>
+
+      <!-- Cameras -->
+      <div class="section-title"><h3>Camera Settings</h3></div>
+      <div class="admin-camera-cards" id="cameraCards">
+        ${day.cameras.map(c => cameraCard(c)).join('')}
+        <div class="admin-camera-card" style="border-style:dashed;display:flex;align-items:center;justify-content:center;cursor:pointer;min-height:120px" onclick="addCamera(${dayId})">
+          <span style="color:var(--text-dim);font-size:14px">+ Add Camera</span>
+        </div>
+      </div>
+
+      <!-- Rolls -->
+      <div class="section-title"><h3>Card Offloads</h3></div>
+      <div class="card" style="overflow-x:auto">
+        <table class="data-table" id="rollsTable">
+          <thead><tr>
+            <th>Roll</th><th>Card Serial</th><th>GB</th><th>Duration (TC)</th><th style="text-align:center">Master</th><th style="text-align:center">Backup</th><th>Frames</th><th>Notes</th><th></th>
+          </tr></thead>
+          <tbody id="rollsBody">
+            ${day.rolls.map(r => rollRow(r)).join('')}
+          </tbody>
+        </table>
+        <div style="padding:8px 12px" class="btn-group">
+          <button class="btn btn-sm" onclick="addRoll(${dayId})">+ Add Roll</button>
+          <button class="btn btn-sm" onclick="addBreak(${dayId})">+ Add Break/Lunch</button>
+        </div>
+        <div class="totals-bar" id="dayTotals"></div>
+      </div>
+    </div>`;
+
+  // Auto-save day info
+  const saveDay = debounce(async () => {
+    const dn = document.getElementById('dayNumber').value;
+    const dd = document.getElementById('dayDate').value;
+    await api('/days/' + dayId, { method: 'PUT', body: { day_number: parseInt(dn), date: dd } });
+    toast('Saved');
+  });
+  document.getElementById('dayNumber').addEventListener('input', saveDay);
+  document.getElementById('dayDate').addEventListener('input', saveDay);
+
+  updateDayTotals(dayId);
+}
+
+function benchRow(b) {
+  return `<tr data-id="${b.id}">
+    <td><input value="${esc(b.drive_name)}" data-field="drive_name" class="mono"></td>
+    <td><input type="number" step="0.1" value="${b.write_speed}" data-field="write_speed" class="mono" style="width:90px"></td>
+    <td><input type="number" step="0.1" value="${b.read_speed}" data-field="read_speed" class="mono" style="width:90px"></td>
+    <td><input value="${esc(b.capacity)}" data-field="capacity" style="width:70px"></td>
+    <td><input value="${esc(b.format)}" data-field="format" class="mono" style="width:70px"></td>
+    <td><input value="${esc(b.notes)}" data-field="notes"></td>
+    <td class="row-actions"><button class="btn btn-sm btn-danger" onclick="deleteBenchmark(${b.id})">x</button></td>
+  </tr>`;
+}
+
+function cameraCard(c) {
+  return `<div class="admin-camera-card" data-id="${c.id}">
+    <button class="delete-cam" onclick="deleteCamera(${c.id})">&times;</button>
+    <div class="cam-form">
+      <div class="full"><div class="form-group"><label>Camera</label><input value="${esc(c.camera_name)}" data-field="camera_name" data-type="camera"></div></div>
+      <div class="form-group"><label>Label</label><input value="${esc(c.label)}" data-field="label" data-type="camera" placeholder="ACAM"></div>
+      <div class="form-group"><label>Resolution</label><input value="${esc(c.resolution)}" data-field="resolution" data-type="camera"></div>
+      <div class="form-group"><label>Codec</label><input value="${esc(c.codec)}" data-field="codec" data-type="camera" class="mono"></div>
+      <div class="form-group"><label>Colorspace</label><input value="${esc(c.colorspace)}" data-field="colorspace" data-type="camera" class="mono"></div>
+      <div class="form-group"><label>LUT</label><input value="${esc(c.lut)}" data-field="lut" data-type="camera" class="mono"></div>
+      <div class="form-group"><label>FPS</label><input value="${esc(c.fps)}" data-field="fps" data-type="camera"></div>
+    </div>
+  </div>`;
+}
+
+function rollRow(r) {
+  if (r.is_break) {
+    return `<tr data-id="${r.id}" class="break-row">
+      <td><input value="${esc(r.roll_name)}" data-field="roll_name" class="mono" style="font-style:italic;color:var(--accent)"></td>
+      <td colspan="6" style="text-align:center;color:var(--text-dim);font-style:italic">-- break --</td>
+      <td></td>
+      <td class="row-actions"><button class="btn btn-sm btn-danger" onclick="deleteRoll(${r.id})">x</button></td>
+    </tr>`;
+  }
+  return `<tr data-id="${r.id}">
+    <td><input value="${esc(r.roll_name)}" data-field="roll_name" class="mono" style="width:130px"></td>
+    <td><input value="${esc(r.card_serial)}" data-field="card_serial" class="mono" style="width:120px"></td>
+    <td><input type="number" step="0.01" value="${r.gb}" data-field="gb" class="mono" style="width:90px"></td>
+    <td><input value="${esc(r.duration_tc)}" data-field="duration_tc" class="mono" style="width:110px" placeholder="HH:MM:SS:FF"></td>
+    <td style="text-align:center"><input type="checkbox" data-field="master" ${r.master ? 'checked' : ''}></td>
+    <td style="text-align:center"><input type="checkbox" data-field="backup" ${r.backup ? 'checked' : ''}></td>
+    <td><input type="number" value="${r.frames}" data-field="frames" class="mono" style="width:90px"></td>
+    <td><input value="${esc(r.notes)}" data-field="notes" style="min-width:120px"></td>
+    <td class="row-actions"><button class="btn btn-sm btn-danger" onclick="deleteRoll(${r.id})">x</button></td>
+  </tr>`;
+}
+
+// ===== CRUD Operations =====
+
+// Benchmarks
+async function addBenchmark(dayId) {
+  const { id } = await api('/days/' + dayId + '/benchmarks', { method: 'POST', body: { drive_name: 'New Drive' } });
+  render();
+}
+
+async function deleteBenchmark(id) {
+  await api('/benchmarks/' + id, { method: 'DELETE' });
+  render();
+}
+
+// Cameras
+async function addCamera(dayId) {
+  const { id } = await api('/days/' + dayId + '/cameras', { method: 'POST', body: { camera_name: 'New Camera' } });
+  render();
+}
+
+async function deleteCamera(id) {
+  await api('/cameras/' + id, { method: 'DELETE' });
+  render();
+}
+
+// Rolls
+async function addRoll(dayId) {
+  const { id } = await api('/days/' + dayId + '/rolls', { method: 'POST', body: { roll_name: 'NEW_ROLL' } });
+  render();
+}
+
+async function addBreak(dayId) {
+  const name = prompt('Break name:', 'LUNCH');
+  if (!name) return;
+  await api('/days/' + dayId + '/rolls', { method: 'POST', body: { roll_name: name, is_break: true } });
+  render();
+}
+
+async function deleteRoll(id) {
+  await api('/rolls/' + id, { method: 'DELETE' });
+  render();
+}
+
+// ===== Auto-save delegation =====
+const saveBenchmark = debounce(async (id, field, value) => {
+  await api('/benchmarks/' + id, { method: 'PUT', body: { [field]: value } });
+  toast('Saved');
+});
+
+const saveCamera = debounce(async (id, field, value) => {
+  await api('/cameras/' + id, { method: 'PUT', body: { [field]: value } });
+  toast('Saved');
+});
+
+const saveRoll = debounce(async (id, field, value) => {
+  await api('/rolls/' + id, { method: 'PUT', body: { [field]: value } });
+  toast('Saved');
+  // Recalc totals
+  const route = getRoute();
+  if (route.dayId) updateDayTotals(route.dayId);
+});
+
+document.addEventListener('input', e => {
+  const row = e.target.closest('[data-id]');
+  if (!row) return;
+  const id = row.dataset.id;
+  const field = e.target.dataset.field;
+  if (!field) return;
+
+  let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+  if (e.target.type === 'number') value = parseFloat(value) || 0;
+
+  // Validate timecode
+  if (field === 'duration_tc') {
+    const valid = /^\d{2}:\d{2}:\d{2}:\d{2}$/.test(value);
+    e.target.classList.toggle('invalid', value && !valid);
+  }
+
+  if (e.target.dataset.type === 'camera') saveCamera(id, field, value);
+  else if (e.target.closest('#benchTable')) saveBenchmark(id, field, value);
+  else if (e.target.closest('#rollsTable')) saveRoll(id, field, value);
+});
+
+async function updateDayTotals(dayId) {
+  const day = await api('/days/' + dayId);
+  const nonBreak = day.rolls.filter(r => !r.is_break);
+  const totalGb = nonBreak.reduce((s, r) => s + (r.gb || 0), 0);
+  const totalFrames = nonBreak.reduce((s, r) => s + (r.frames || 0), 0);
+  // Sum timecodes client-side
+  const tcs = nonBreak.map(r => r.duration_tc).filter(t => t && /^\d{2}:\d{2}:\d{2}:\d{2}$/.test(t));
+  const totalDuration = sumTC(tcs);
+
+  const el = document.getElementById('dayTotals');
+  if (el) {
+    el.innerHTML = `
+      <div><div class="t-label">Total Data</div><div class="t-value">${fmtNum(totalGb)} GB</div></div>
+      <div><div class="t-label">Total Duration</div><div class="t-value">${totalDuration}</div></div>
+      <div><div class="t-label">Total Frames</div><div class="t-value">${fmtInt(totalFrames)}</div></div>
+      <div><div class="t-label">Rolls</div><div class="t-value">${nonBreak.length}</div></div>`;
+  }
+}
+
+function sumTC(tcs) {
+  let h=0, m=0, s=0, f=0;
+  for (const tc of tcs) {
+    const p = tc.split(':').map(Number);
+    h += p[0]; m += p[1]; s += p[2]; f += p[3];
+  }
+  s += Math.floor(f / 24); f = f % 24;
+  m += Math.floor(s / 60); s = s % 60;
+  h += Math.floor(m / 60); m = m % 60;
+  const pad = n => String(n).padStart(2, '0');
+  return `${pad(h)}:${pad(m)}:${pad(s)}:${pad(f)}`;
+}
+
+function esc(s) {
+  if (!s && s !== 0) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Initial render
+render();
+</script>
+</body>
+</html>

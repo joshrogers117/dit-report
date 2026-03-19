@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DIT Offload Report</title>
+<style>
+  :root {
+    --bg: #0e1117;
+    --surface: #161b22;
+    --surface2: #1c2333;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-dim: #8b949e;
+    --accent: #58a6ff;
+    --accent2: #3fb950;
+    --accent3: #d29922;
+    --danger: #f85149;
+    --radius: 10px;
+    --shadow: 0 2px 12px rgba(0,0,0,.4);
+  }
+
+  .theme-light {
+    --bg: #f0f2f5;
+    --surface: #ffffff;
+    --surface2: #f8f9fa;
+    --border: #d0d7de;
+    --text: #1f2328;
+    --text-dim: #656d76;
+    --accent: #0969da;
+    --accent2: #1a7f37;
+    --accent3: #9a6700;
+    --danger: #cf222e;
+    --shadow: 0 2px 12px rgba(0,0,0,.08);
+  }
+
+  .theme-film {
+    --bg: #1a1410;
+    --surface: #231c15;
+    --surface2: #2a2118;
+    --border: #3d3229;
+    --text: #e8ddd0;
+    --text-dim: #9a8b7a;
+    --accent: #d4a574;
+    --accent2: #7ab87a;
+    --accent3: #d4a030;
+    --danger: #d45050;
+    --shadow: 0 2px 12px rgba(0,0,0,.5);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    min-height: 100vh;
+    transition: background .3s, color .3s;
+  }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+  /* Header */
+  .report-header {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px 32px;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow);
+  }
+  .report-header h1 {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 4px;
+  }
+  .report-header .subtitle {
+    color: var(--text-dim);
+    font-size: 14px;
+  }
+  .header-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-top: 20px;
+  }
+  .header-item label {
+    display: block;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--text-dim);
+    margin-bottom: 2px;
+    font-weight: 600;
+  }
+  .header-item span {
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .controls label {
+    font-size: 12px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 600;
+    margin-right: 4px;
+  }
+  .btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all .15s;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .spacer { flex: 1; }
+
+  /* Stats bar */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    box-shadow: var(--shadow);
+  }
+  .stat-card .stat-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--text-dim);
+    font-weight: 600;
+  }
+  .stat-card .stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    margin-top: 4px;
+    letter-spacing: -0.5px;
+  }
+  .stat-card .stat-unit {
+    font-size: 13px;
+    color: var(--text-dim);
+    font-weight: 400;
+  }
+
+  /* Day tabs */
+  .day-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+  }
+  .day-tab {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 10px 24px;
+    border-radius: 8px 8px 0 0;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all .15s;
+    border-bottom: 2px solid transparent;
+  }
+  .day-tab:hover { color: var(--text); }
+  .day-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    background: var(--surface2);
+  }
+
+  /* Sections */
+  .section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .section-header {
+    padding: 14px 20px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    font-weight: 700;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+  }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  th {
+    text-align: left;
+    padding: 10px 16px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+  }
+  td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(88,166,255,.04); }
+
+  .mono {
+    font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
+    font-size: 12px;
+  }
+
+  /* Status badges */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  .badge-ok { background: rgba(63,185,80,.15); color: var(--accent2); }
+  .badge-pending { background: rgba(210,153,34,.15); color: var(--accent3); }
+  .badge-fail { background: rgba(248,81,73,.15); color: var(--danger); }
+  .badge-break {
+    background: rgba(88,166,255,.1);
+    color: var(--accent);
+    font-style: italic;
+  }
+
+  /* Camera cards (alt layout) */
+  .camera-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 12px;
+    padding: 16px;
+  }
+  .camera-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .camera-card h3 {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .camera-card .cam-label {
+    font-size: 10px;
+    background: var(--accent);
+    color: #fff;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-weight: 700;
+  }
+  .camera-card .cam-specs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .camera-card .cam-spec-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-dim);
+  }
+  .camera-card .cam-spec-value {
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  /* Benchmark bars */
+  .bench-bar-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .bench-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+    max-width: 120px;
+  }
+  .bench-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width .5s ease;
+  }
+  .bench-bar-fill.write { background: var(--accent); }
+  .bench-bar-fill.read { background: var(--accent2); }
+
+  /* Progress ring for offload */
+  .offload-progress {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .check { color: var(--accent2); font-weight: bold; }
+  .cross { color: var(--danger); }
+
+  /* Summary row */
+  .summary-row td {
+    font-weight: 700;
+    background: var(--surface2);
+    border-top: 2px solid var(--border);
+  }
+
+  /* Layout: cards view */
+  .rolls-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 12px;
+    padding: 16px;
+  }
+  .roll-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    transition: border-color .15s;
+  }
+  .roll-card:hover { border-color: var(--accent); }
+  .roll-card.is-break {
+    border-style: dashed;
+    opacity: .6;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-style: italic;
+    color: var(--text-dim);
+  }
+  .roll-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .roll-card-header h4 {
+    font-size: 14px;
+    font-family: 'SF Mono', monospace;
+    font-weight: 700;
+  }
+  .roll-card-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .roll-card-note {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--text-dim);
+    font-style: italic;
+  }
+
+  /* Layout toggle */
+  .layout-toggle {
+    display: flex;
+    gap: 2px;
+    background: var(--surface2);
+    border-radius: 6px;
+    padding: 2px;
+    border: 1px solid var(--border);
+  }
+  .layout-toggle .btn {
+    border: none;
+    background: transparent;
+    padding: 5px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+  .layout-toggle .btn.active {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  /* Day overview all-days view */
+  .all-days-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .day-summary-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    transition: border-color .15s, transform .15s;
+  }
+  .day-summary-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+  }
+  .day-summary-card h3 {
+    font-size: 18px;
+    margin-bottom: 4px;
+  }
+  .day-summary-card .day-date {
+    color: var(--text-dim);
+    font-size: 13px;
+    margin-bottom: 12px;
+  }
+  .day-summary-card .day-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .day-summary-card .day-stat-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+  }
+  .day-summary-card .day-stat-value {
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  /* Footer */
+  .report-footer {
+    text-align: center;
+    padding: 32px;
+    color: var(--text-dim);
+    font-size: 12px;
+  }
+
+  @media (max-width: 768px) {
+    .container { padding: 12px; }
+    .report-header { padding: 20px; }
+    .header-grid { grid-template-columns: 1fr 1fr; }
+    .stats-bar { grid-template-columns: 1fr 1fr; }
+    th, td { padding: 8px 10px; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <!-- Header -->
+  <div class="report-header">
+    <h1>Valvoline High Mileage Lifestyle</h1>
+    <div class="subtitle">DIT Offload Report &mdash; Six Foot Five Productions</div>
+    <div class="header-grid">
+      <div class="header-item">
+        <label>Director</label>
+        <span>Taylor Robinson</span>
+      </div>
+      <div class="header-item">
+        <label>Producer</label>
+        <span>Audra Whaley</span>
+      </div>
+      <div class="header-item">
+        <label>DP</label>
+        <span>Ryan Whaley</span>
+      </div>
+      <div class="header-item">
+        <label>1st AC</label>
+        <span>Diego Montiel</span>
+      </div>
+      <div class="header-item">
+        <label>Client</label>
+        <span>Valvoline</span>
+      </div>
+      <div class="header-item">
+        <label>DIT / Data Manager</label>
+        <span>John David Wright</span>
+      </div>
+      <div class="header-item">
+        <label>Contact</label>
+        <span>jd@johndavidwright.com</span>
+      </div>
+      <div class="header-item">
+        <label>Shoot Dates</label>
+        <span>Nov 13&ndash;15, 2024</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <label>Theme:</label>
+    <div class="layout-toggle" id="themeToggle">
+      <button class="btn active" data-theme="">Dark</button>
+      <button class="btn" data-theme="theme-light">Light</button>
+      <button class="btn" data-theme="theme-film">Film</button>
+    </div>
+    <div class="spacer"></div>
+    <label>Roll Layout:</label>
+    <div class="layout-toggle" id="layoutToggle">
+      <button class="btn active" data-layout="table">Table</button>
+      <button class="btn" data-layout="cards">Cards</button>
+    </div>
+  </div>
+
+  <!-- Top-level stats -->
+  <div class="stats-bar">
+    <div class="stat-card">
+      <div class="stat-label">Total Data</div>
+      <div class="stat-value">4,698 <span class="stat-unit">GB</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Duration</div>
+      <div class="stat-value">5:06:24</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Frames</div>
+      <div class="stat-value">441,228</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Shoot Days</div>
+      <div class="stat-value">3</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Rolls</div>
+      <div class="stat-value">13</div>
+    </div>
+  </div>
+
+  <!-- Day tabs -->
+  <div class="day-tabs">
+    <button class="day-tab active" data-day="overview">Overview</button>
+    <button class="day-tab" data-day="0">Day 01 &mdash; Nov 13</button>
+    <button class="day-tab" data-day="1">Day 02 &mdash; Nov 14</button>
+    <button class="day-tab" data-day="2">Day 03 &mdash; Nov 15</button>
+  </div>
+
+  <!-- Content area -->
+  <div id="content"></div>
+
+  <div class="report-footer">
+    DIT Offload Report &mdash; Generated from production data
+  </div>
+</div>
+
+<script>
+const DAYS = [
+  {
+    date: "2024-11-13",
+    label: "Day 01",
+    dateFormatted: "November 13, 2024",
+    benchmarks: [
+      { name: "Echo_01", write: 879.8, read: 671.0, capacity: "4TB", format: "APFS", notes: "SanDisk Extreme 55AE" },
+      { name: "Echo_02", write: 878.7, read: 668.8, capacity: "4TB", format: "APFS", notes: "SanDisk Extreme 55AE" }
+    ],
+    cameras: [
+      { name: "V-RAPTOR XL", res: "8K 17:9", codec: "R3D MQ", colorspace: "LOG3G10", lut: "REC709", fps: "23.976", label: "ACAM" },
+      { name: "KOMODO X", res: "6K 17:9", codec: "R3D MQ", colorspace: "LOG3G10", lut: "REC709", fps: "23.976", label: "BCAM" },
+      { name: "DSMC2", res: "6K 17:9", codec: "R3D 15:1", colorspace: "LOG3G10", lut: "REC709", fps: "1 FPS", label: "CCAM" }
+    ],
+    rolls: [
+      { roll: "B001_1113PV", serial: "AOGPAWF", gb: 267.75, duration: "00:26:35:14", master: true, backup: true, notes: "", frames: 38294 },
+      { roll: "C001_11126H", serial: "75013079B4DA", gb: 13.73, duration: "00:03:23:01", master: true, backup: true, notes: "", frames: 4873 },
+      { roll: "A001_11121K", serial: "ARB4BYL", gb: 1004.87, duration: "00:56:17:00", master: true, backup: true, notes: "", frames: 81048 }
+    ],
+    totals: { gb: 1286.35, duration: "01:26:15:15", frames: 124215 }
+  },
+  {
+    date: "2024-11-14",
+    label: "Day 02",
+    dateFormatted: "November 14, 2024",
+    benchmarks: [
+      { name: "Echo_01", write: 879.8, read: 671.0, capacity: "4TB", format: "APFS", notes: "SanDisk Extreme 55AE" },
+      { name: "Echo_02", write: 878.7, read: 668.8, capacity: "4TB", format: "APFS", notes: "SanDisk Extreme 55AE" }
+    ],
+    cameras: [
+      { name: "V-RAPTOR XL", res: "8K 17:9", codec: "R3D MQ", colorspace: "LOG3G10", lut: "REC709", fps: "23.976", label: "ACAM" },
+      { name: "KOMODO X", res: "6K 17:9", codec: "R3D MQ", colorspace: "LOG3G10", lut: "REC709", fps: "23.976", label: "BCAM" },
+      { name: "DSMC2", res: "6K 17:9", codec: "R3D 12:1", colorspace: "LOG3G10", lut: "REC709", fps: "1 FPS", label: "CCAM" }
+    ],
+    rolls: [
+      { roll: "A002_1114F4", serial: "AR2JAQY", gb: 613.14, duration: "00:34:20:10", master: true, backup: true, notes: "478 MB/s READ", frames: 49450 },
+      { roll: "B002_1114N0", serial: "AU4YPWD", gb: 305.65, duration: "00:30:22:21", master: true, backup: true, notes: "474 MB/s READ", frames: 43749 },
+      { roll: "A003_1114MX", serial: "AW6PKEB", gb: 542.77, duration: "00:30:23:22", master: true, backup: true, notes: "477 MB/s READ", frames: 43774 },
+      { roll: "LUNCH", serial: "", gb: 0, duration: "", master: null, backup: null, notes: "", frames: 0, isBreak: true },
+      { roll: "A004_1114WR", serial: "AWIGXJC", gb: 313.53, duration: "00:17:33:15", master: true, backup: true, notes: "475 MB/s READ", frames: 25287 },
+      { roll: "A005_1115XR", serial: "ARB4BYL", gb: 163.03, duration: "00:09:07:20", master: true, backup: true, notes: "470 MB/s READ", frames: 13148 },
+      { roll: "A006_1115SC", serial: "AR2JAQY", gb: 69.32, duration: "00:03:52:22", master: true, backup: true, notes: "473 MB/s READ", frames: 5590 },
+      { roll: "C002_1114FY", serial: "75013068AD7C", gb: 0.69, duration: "00:00:10:02", master: true, backup: true, notes: "1 shot not very long", frames: 242 }
+    ],
+    totals: { gb: 2008.13, duration: "02:05:51:16", frames: 181240 }
+  },
+  {
+    date: "2024-11-15",
+    label: "Day 03",
+    dateFormatted: "November 15, 2024",
+    benchmarks: [
+      { name: "Frank_01", write: 2668.9, read: 2669.2, capacity: "4TB", format: "APFS", notes: "PCIe SSD Media - Glyph" },
+      { name: "Frank_02", write: 2639.6, read: 2674.2, capacity: "4TB", format: "APFS", notes: "PCIe SSD Media - Glyph" }
+    ],
+    cameras: [
+      { name: "V-RAPTOR XL", res: "8K 17:9", codec: "R3D MQ", colorspace: "LOG3G10", lut: "REC709", fps: "23.976", label: "ACAM" },
+      { name: "KOMODO X", res: "6K 17:9", codec: "R3D MQ", colorspace: "LOG3G10", lut: "REC709", fps: "23.976", label: "BCAM" },
+      { name: "DSMC2", res: "6K 17:9", codec: "R3D 12:1", colorspace: "LOG3G10", lut: "REC709", fps: "1 FPS", label: "CCAM" }
+    ],
+    rolls: [
+      { roll: "C003_1115SJ", serial: "75013068E425", gb: 1.15, duration: "00:00:16:18", master: true, backup: true, notes: "", frames: 402 },
+      { roll: "A007_1115XD", serial: "AW6PKEB", gb: 226.4, duration: "00:12:40:20", master: true, backup: true, notes: "683 MB/s READ burst, then slows down to 370 MB/s", frames: 18260 },
+      { roll: "B003_1114TZ", serial: "APLCHRY", gb: 178.68, duration: "00:17:45:18", master: true, backup: true, notes: "", frames: 25578 },
+      { roll: "A008_1115EP", serial: "AWIGXJC", gb: 267.46, duration: "00:14:58:19", master: true, backup: true, notes: "", frames: 21571 },
+      { roll: "LUNCH", serial: "", gb: 0, duration: "", master: null, backup: null, notes: "", frames: 0, isBreak: true },
+      { roll: "A009_1115W8", serial: "ARB4BYL", gb: 531.7, duration: "00:29:46:18", master: true, backup: true, notes: "", frames: 42882 },
+      { roll: "A010_1115LD", serial: "AR2JAQY", gb: 20.74, duration: "00:01:09:16", master: true, backup: true, notes: "Final portrait", frames: 1672 },
+      { roll: "B004_1115MP", serial: "AOGPAWF", gb: 177.6, duration: "00:17:38:16", master: true, backup: true, notes: "", frames: 25408 }
+    ],
+    totals: { gb: 1403.73, duration: "01:34:17:05", frames: 135773 }
+  }
+];
+
+let currentDay = "overview";
+let currentLayout = "table";
+
+// Theme toggle
+document.getElementById("themeToggle").addEventListener("click", e => {
+  const btn = e.target.closest("[data-theme]");
+  if (!btn) return;
+  document.body.className = btn.dataset.theme;
+  document.querySelectorAll("#themeToggle .btn").forEach(b => b.classList.toggle("active", b === btn));
+});
+
+// Layout toggle
+document.getElementById("layoutToggle").addEventListener("click", e => {
+  const btn = e.target.closest("[data-layout]");
+  if (!btn) return;
+  currentLayout = btn.dataset.layout;
+  document.querySelectorAll("#layoutToggle .btn").forEach(b => b.classList.toggle("active", b === btn));
+  render();
+});
+
+// Day tabs
+document.querySelector(".day-tabs").addEventListener("click", e => {
+  const tab = e.target.closest(".day-tab");
+  if (!tab) return;
+  currentDay = tab.dataset.day;
+  document.querySelectorAll(".day-tab").forEach(t => t.classList.toggle("active", t === tab));
+  render();
+});
+
+function maxBenchmark() {
+  let max = 0;
+  DAYS.forEach(d => d.benchmarks.forEach(b => { max = Math.max(max, b.write, b.read); }));
+  return max;
+}
+
+function renderBenchmarks(benchmarks) {
+  const max = maxBenchmark();
+  return `<div class="section">
+    <div class="section-header">Drive Benchmarks (MB/s)</div>
+    <table>
+      <tr><th>Drive</th><th>Write</th><th>Read</th><th>Capacity</th><th>Format</th><th>Notes</th></tr>
+      ${benchmarks.map(b => `<tr>
+        <td class="mono" style="font-weight:600">${b.name}</td>
+        <td><div class="bench-bar-container">
+          <span class="mono">${b.write.toLocaleString()}</span>
+          <div class="bench-bar"><div class="bench-bar-fill write" style="width:${(b.write/max*100).toFixed(1)}%"></div></div>
+        </div></td>
+        <td><div class="bench-bar-container">
+          <span class="mono">${b.read.toLocaleString()}</span>
+          <div class="bench-bar"><div class="bench-bar-fill read" style="width:${(b.read/max*100).toFixed(1)}%"></div></div>
+        </div></td>
+        <td>${b.capacity}</td>
+        <td class="mono">${b.format}</td>
+        <td style="color:var(--text-dim);font-size:12px">${b.notes}</td>
+      </tr>`).join("")}
+    </table>
+  </div>`;
+}
+
+function renderCameras(cameras) {
+  return `<div class="section">
+    <div class="section-header">Camera Settings</div>
+    <div class="camera-cards">
+      ${cameras.map(c => `<div class="camera-card">
+        <h3>${c.name} <span class="cam-label">${c.label}</span></h3>
+        <div class="cam-specs">
+          <div><div class="cam-spec-label">Resolution</div><div class="cam-spec-value">${c.res}</div></div>
+          <div><div class="cam-spec-label">Codec</div><div class="cam-spec-value mono">${c.codec}</div></div>
+          <div><div class="cam-spec-label">Colorspace</div><div class="cam-spec-value mono">${c.colorspace}</div></div>
+          <div><div class="cam-spec-label">LUT</div><div class="cam-spec-value mono">${c.lut}</div></div>
+          <div><div class="cam-spec-label">FPS</div><div class="cam-spec-value">${c.fps}</div></div>
+        </div>
+      </div>`).join("")}
+    </div>
+  </div>`;
+}
+
+function statusBadge(val) {
+  if (val === true) return `<span class="check">&#10003;</span>`;
+  if (val === false) return `<span class="cross">&#10005;</span>`;
+  return `<span style="color:var(--text-dim)">&mdash;</span>`;
+}
+
+function renderRollsTable(rolls, totals) {
+  return `<div class="section">
+    <div class="section-header">Card Offloads</div>
+    <table>
+      <tr><th>Roll</th><th>Card Serial</th><th style="text-align:right">GB</th><th>Duration</th><th style="text-align:center">Master</th><th style="text-align:center">Backup</th><th>Frames</th><th>Notes</th></tr>
+      ${rolls.map(r => {
+        if (r.isBreak) return `<tr><td colspan="8" style="text-align:center"><span class="badge badge-break">${r.roll}</span></td></tr>`;
+        return `<tr>
+          <td class="mono" style="font-weight:600">${r.roll}</td>
+          <td class="mono" style="color:var(--text-dim)">${r.serial}</td>
+          <td class="mono" style="text-align:right">${r.gb.toLocaleString(undefined,{minimumFractionDigits:2})}</td>
+          <td class="mono">${r.duration}</td>
+          <td style="text-align:center">${statusBadge(r.master)}</td>
+          <td style="text-align:center">${statusBadge(r.backup)}</td>
+          <td class="mono" style="text-align:right">${r.frames.toLocaleString()}</td>
+          <td style="color:var(--text-dim);font-size:12px;max-width:200px">${r.notes}</td>
+        </tr>`;
+      }).join("")}
+      <tr class="summary-row">
+        <td>WRAP</td><td></td>
+        <td class="mono" style="text-align:right">${totals.gb.toLocaleString(undefined,{minimumFractionDigits:2})}</td>
+        <td class="mono">${totals.duration}</td>
+        <td></td><td></td>
+        <td class="mono" style="text-align:right">${totals.frames.toLocaleString()}</td>
+        <td></td>
+      </tr>
+    </table>
+  </div>`;
+}
+
+function renderRollsCards(rolls, totals) {
+  return `<div class="section">
+    <div class="section-header">Card Offloads</div>
+    <div class="rolls-cards">
+      ${rolls.map(r => {
+        if (r.isBreak) return `<div class="roll-card is-break">${r.roll}</div>`;
+        return `<div class="roll-card">
+          <div class="roll-card-header">
+            <h4>${r.roll}</h4>
+            <div>
+              ${r.master ? '<span class="badge badge-ok">Master</span>' : ''}
+              ${r.backup ? '<span class="badge badge-ok" style="margin-left:4px">Backup</span>' : ''}
+            </div>
+          </div>
+          <div class="roll-card-meta">
+            <div><div class="cam-spec-label">Size</div><div class="cam-spec-value mono">${r.gb.toLocaleString(undefined,{minimumFractionDigits:2})} GB</div></div>
+            <div><div class="cam-spec-label">Duration</div><div class="cam-spec-value mono">${r.duration}</div></div>
+            <div><div class="cam-spec-label">Frames</div><div class="cam-spec-value mono">${r.frames.toLocaleString()}</div></div>
+            <div><div class="cam-spec-label">Card</div><div class="cam-spec-value mono" style="font-size:11px">${r.serial}</div></div>
+          </div>
+          ${r.notes ? `<div class="roll-card-note">${r.notes}</div>` : ''}
+        </div>`;
+      }).join("")}
+    </div>
+    <div style="padding:12px 20px;border-top:1px solid var(--border);background:var(--surface2);display:flex;gap:32px;font-weight:600;font-size:13px">
+      <span>Total: <span class="mono">${totals.gb.toLocaleString(undefined,{minimumFractionDigits:2})} GB</span></span>
+      <span>Duration: <span class="mono">${totals.duration}</span></span>
+      <span>Frames: <span class="mono">${totals.frames.toLocaleString()}</span></span>
+    </div>
+  </div>`;
+}
+
+function renderOverview() {
+  return `<div class="all-days-grid">
+    ${DAYS.map((d, i) => `<div class="day-summary-card" onclick="document.querySelectorAll('.day-tab')[${i+1}].click()">
+      <h3>${d.label}</h3>
+      <div class="day-date">${d.dateFormatted}</div>
+      <div class="day-stats">
+        <div><div class="day-stat-label">Data</div><div class="day-stat-value">${d.totals.gb.toLocaleString()} GB</div></div>
+        <div><div class="day-stat-label">Duration</div><div class="day-stat-value">${d.totals.duration.substring(0,8)}</div></div>
+        <div><div class="day-stat-label">Rolls</div><div class="day-stat-value">${d.rolls.filter(r=>!r.isBreak).length}</div></div>
+        <div><div class="day-stat-label">Frames</div><div class="day-stat-value">${d.totals.frames.toLocaleString()}</div></div>
+      </div>
+      <div style="margin-top:12px;font-size:12px;color:var(--text-dim)">
+        Drives: ${d.benchmarks.map(b=>b.name).join(", ")} &bull;
+        ${d.cameras.length} cameras
+      </div>
+    </div>`).join("")}
+  </div>
+  <div class="section">
+    <div class="section-header">All Cameras Used</div>
+    <div class="camera-cards">
+      ${DAYS[0].cameras.map(c => `<div class="camera-card">
+        <h3>${c.name} <span class="cam-label">${c.label}</span></h3>
+        <div class="cam-specs">
+          <div><div class="cam-spec-label">Resolution</div><div class="cam-spec-value">${c.res}</div></div>
+          <div><div class="cam-spec-label">Codec</div><div class="cam-spec-value mono">${c.codec}</div></div>
+          <div><div class="cam-spec-label">Colorspace</div><div class="cam-spec-value mono">${c.colorspace}</div></div>
+          <div><div class="cam-spec-label">FPS</div><div class="cam-spec-value">${c.fps}</div></div>
+        </div>
+      </div>`).join("")}
+    </div>
+  </div>`;
+}
+
+function renderDay(dayIndex) {
+  const day = DAYS[dayIndex];
+  const rollsHTML = currentLayout === "table"
+    ? renderRollsTable(day.rolls, day.totals)
+    : renderRollsCards(day.rolls, day.totals);
+  return `
+    <div style="margin-bottom:16px">
+      <h2 style="font-size:20px;font-weight:700">${day.label} &mdash; ${day.dateFormatted}</h2>
+      <div style="color:var(--text-dim);font-size:13px;margin-top:4px">
+        ${day.totals.gb.toLocaleString()} GB &bull; ${day.totals.duration} &bull; ${day.totals.frames.toLocaleString()} frames &bull; ${day.rolls.filter(r=>!r.isBreak).length} rolls
+      </div>
+    </div>
+    ${renderBenchmarks(day.benchmarks)}
+    ${renderCameras(day.cameras)}
+    ${rollsHTML}
+  `;
+}
+
+function render() {
+  const el = document.getElementById("content");
+  if (currentDay === "overview") {
+    el.innerHTML = renderOverview();
+  } else {
+    el.innerHTML = renderDay(parseInt(currentDay));
+  }
+}
+
+render();
+</script>
+</body>
+</html>

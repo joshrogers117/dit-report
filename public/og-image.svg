@@ -1,0 +1,7 @@
+<svg viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" fill="#0a0a0a"/>
+  <text x="600" y="280" text-anchor="middle" font-family="SF Mono, Menlo, Consolas, monospace" font-weight="800" font-size="180" fill="#ffffff" letter-spacing="-5">DIT</text>
+  <rect x="300" y="340" width="600" height="64" rx="8" fill="#1a1a1a" stroke="#333" stroke-width="2"/>
+  <text x="600" y="385" text-anchor="middle" font-family="SF Mono, Menlo, Consolas, monospace" font-weight="500" font-size="40" fill="#f97316">01:26:15:19</text>
+  <text x="600" y="480" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="400" font-size="42" fill="#666">Offload Report</text>
+</svg>

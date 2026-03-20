@@ -57,6 +57,7 @@ async function ensureDB(db) {
       resolution TEXT DEFAULT '',
       codec TEXT DEFAULT '',
       colorspace TEXT DEFAULT '',
+      gamma TEXT DEFAULT '',
       lut TEXT DEFAULT '',
       fps TEXT DEFAULT '23.976',
       audio TEXT DEFAULT '',
@@ -83,6 +84,7 @@ async function ensureDB(db) {
   // Migrations: add columns that may not exist in older databases
   try { await db.prepare('ALTER TABLE cameras ADD COLUMN audio TEXT DEFAULT \'\'').run(); } catch(e) { /* column already exists */ }
   try { await db.prepare('ALTER TABLE cameras ADD COLUMN source_type TEXT DEFAULT \'camera\'').run(); } catch(e) { /* column already exists */ }
+  try { await db.prepare('ALTER TABLE cameras ADD COLUMN gamma TEXT DEFAULT \'\'').run(); } catch(e) { /* column already exists */ }
 
   // Seed sample data if database is empty
   const { count } = await db.prepare('SELECT COUNT(*) as count FROM projects').first();
@@ -284,8 +286,8 @@ router.post('/days/:id/clone', async (request, env) => {
         .bind(newDayId, b.drive_name, b.write_speed, b.read_speed, b.capacity, b.format, b.notes, b.sort_order)
     ),
     ...camRes.results.map(c =>
-      env.DB.prepare('INSERT INTO cameras (day_id, source_type, camera_name, resolution, codec, colorspace, lut, fps, audio, label, notes, sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
-        .bind(newDayId, c.source_type || 'camera', c.camera_name, c.resolution, c.codec, c.colorspace, c.lut, c.fps, c.audio || '', c.label, c.notes, c.sort_order)
+      env.DB.prepare('INSERT INTO cameras (day_id, source_type, camera_name, resolution, codec, colorspace, gamma, lut, fps, audio, label, notes, sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)')
+        .bind(newDayId, c.source_type || 'camera', c.camera_name, c.resolution, c.codec, c.colorspace, c.gamma || '', c.lut, c.fps, c.audio || '', c.label, c.notes, c.sort_order)
     ),
   ];
   if (cloneStmts.length > 0) await env.DB.batch(cloneStmts);
@@ -331,14 +333,14 @@ router.post('/days/:did/cameras', async (request, env) => {
   const body = await request.json();
   const maxOrder = await env.DB.prepare('SELECT COALESCE(MAX(sort_order), 0) as m FROM cameras WHERE day_id = ?').bind(did).first();
   const result = await env.DB.prepare(
-    'INSERT INTO cameras (day_id, source_type, camera_name, resolution, codec, colorspace, lut, fps, audio, label, notes, sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)'
-  ).bind(did, body.source_type || 'camera', body.camera_name || '', body.resolution || '', body.codec || '', body.colorspace || '', body.lut || '', body.fps || '23.976', body.audio || '', body.label || '', body.notes || '', maxOrder.m + 1).run();
+    'INSERT INTO cameras (day_id, source_type, camera_name, resolution, codec, colorspace, gamma, lut, fps, audio, label, notes, sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)'
+  ).bind(did, body.source_type || 'camera', body.camera_name || '', body.resolution || '', body.codec || '', body.colorspace || '', body.gamma || '', body.lut || '', body.fps || '23.976', body.audio || '', body.label || '', body.notes || '', maxOrder.m + 1).run();
   return Response.json({ id: result.meta.last_row_id });
 });
 
 router.put('/cameras/:id', async (request, env) => {
   const body = await request.json();
-  const fields = ['source_type', 'camera_name', 'resolution', 'codec', 'colorspace', 'lut', 'fps', 'audio', 'label', 'notes', 'sort_order'];
+  const fields = ['source_type', 'camera_name', 'resolution', 'codec', 'colorspace', 'gamma', 'lut', 'fps', 'audio', 'label', 'notes', 'sort_order'];
   const updates = [];
   const values = [];
   for (const f of fields) {
@@ -355,8 +357,8 @@ router.post('/cameras/:id/duplicate', async (request, env) => {
   if (!src) return Response.json({ error: 'Not found' }, { status: 404 });
   const maxOrder = await env.DB.prepare('SELECT COALESCE(MAX(sort_order), 0) as m FROM cameras WHERE day_id = ?').bind(src.day_id).first();
   const result = await env.DB.prepare(
-    'INSERT INTO cameras (day_id, source_type, camera_name, resolution, codec, colorspace, lut, fps, audio, label, notes, sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)'
-  ).bind(src.day_id, src.source_type || 'camera', src.camera_name, src.resolution, src.codec, src.colorspace, src.lut, src.fps, src.audio || '', src.label, src.notes, maxOrder.m + 1).run();
+    'INSERT INTO cameras (day_id, source_type, camera_name, resolution, codec, colorspace, gamma, lut, fps, audio, label, notes, sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)'
+  ).bind(src.day_id, src.source_type || 'camera', src.camera_name, src.resolution, src.codec, src.colorspace, src.gamma || '', src.lut, src.fps, src.audio || '', src.label, src.notes, maxOrder.m + 1).run();
   return Response.json({ id: result.meta.last_row_id });
 });
 

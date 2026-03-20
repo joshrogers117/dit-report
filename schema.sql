@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS cameras (
   colorspace TEXT DEFAULT '',
   gamma TEXT DEFAULT '',
   lut TEXT DEFAULT '',
-  fps TEXT DEFAULT '23.976',
+  fps TEXT DEFAULT '',
   audio TEXT DEFAULT '',
   label TEXT DEFAULT '',
   notes TEXT DEFAULT '',

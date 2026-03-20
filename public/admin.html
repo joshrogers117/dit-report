@@ -638,10 +638,10 @@ function cameraCard(c) {
       <div class="form-group"><label>Label</label><input value="${esc(c.label)}" data-field="label" data-type="camera" placeholder="ACAM"></div>
       <div class="form-group"><label>Resolution</label><input value="${esc(c.resolution)}" data-field="resolution" data-type="camera" placeholder="e.g. ${h.res}"></div>
       <div class="form-group"><label>FPS</label><input value="${esc(c.fps)}" data-field="fps" data-type="camera" placeholder="e.g. 23.976"></div>
-      <div class="form-group"><label>Codec</label><input value="${esc(c.codec)}" data-field="codec" data-type="camera" class="mono" placeholder="e.g. ${h.codec}"></div>
-      <div class="form-group"><label>Colorspace</label><input value="${esc(c.colorspace)}" data-field="colorspace" data-type="camera" class="mono" placeholder="e.g. ${h.cs}"></div>
-      <div class="form-group"><label>Gamma</label><input value="${esc(c.gamma || '')}" data-field="gamma" data-type="camera" class="mono" placeholder="e.g. ${h.gamma}"></div>
-      <div class="form-group"><label>LUT</label><input value="${esc(c.lut)}" data-field="lut" data-type="camera" class="mono" placeholder="e.g. ${h.lut}"></div>
+      <div class="form-group"><label>Codec</label><input value="${esc(c.codec)}" data-field="codec" data-type="camera" placeholder="e.g. ${h.codec}"></div>
+      <div class="form-group"><label>Colorspace</label><input value="${esc(c.colorspace)}" data-field="colorspace" data-type="camera" placeholder="e.g. ${h.cs}"></div>
+      <div class="form-group"><label>Gamma</label><input value="${esc(c.gamma || '')}" data-field="gamma" data-type="camera" placeholder="e.g. ${h.gamma}"></div>
+      <div class="form-group"><label>LUT</label><input value="${esc(c.lut)}" data-field="lut" data-type="camera" placeholder="e.g. ${h.lut}"></div>
       <div class="form-group"><label>Audio</label><input value="${esc(c.audio)}" data-field="audio" data-type="camera" placeholder="e.g. Onboard Scratch"></div>`;
   } else if (type === 'audio') {
     fields = `

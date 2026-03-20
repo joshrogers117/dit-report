@@ -59,7 +59,7 @@ async function ensureDB(db) {
       colorspace TEXT DEFAULT '',
       gamma TEXT DEFAULT '',
       lut TEXT DEFAULT '',
-      fps TEXT DEFAULT '23.976',
+      fps TEXT DEFAULT '',
       audio TEXT DEFAULT '',
       label TEXT DEFAULT '',
       notes TEXT DEFAULT '',
@@ -334,7 +334,7 @@ router.post('/days/:did/cameras', async (request, env) => {
   const maxOrder = await env.DB.prepare('SELECT COALESCE(MAX(sort_order), 0) as m FROM cameras WHERE day_id = ?').bind(did).first();
   const result = await env.DB.prepare(
     'INSERT INTO cameras (day_id, source_type, camera_name, resolution, codec, colorspace, gamma, lut, fps, audio, label, notes, sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)'
-  ).bind(did, body.source_type || 'camera', body.camera_name || '', body.resolution || '', body.codec || '', body.colorspace || '', body.gamma || '', body.lut || '', body.fps || '23.976', body.audio || '', body.label || '', body.notes || '', maxOrder.m + 1).run();
+  ).bind(did, body.source_type || 'camera', body.camera_name || '', body.resolution || '', body.codec || '', body.colorspace || '', body.gamma || '', body.lut || '', body.fps || '', body.audio || '', body.label || '', body.notes || '', maxOrder.m + 1).run();
   return Response.json({ id: result.meta.last_row_id });
 });
 

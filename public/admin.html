@@ -637,7 +637,7 @@ function cameraCard(c) {
       <div class="form-group"><label>Label</label><input value="${esc(c.label)}" data-field="label" data-type="camera" placeholder="SOUND"></div>
       <div class="form-group"><label>Sample Rate</label><input value="${esc(c.resolution)}" data-field="resolution" data-type="camera" placeholder="48kHz" class="mono"></div>
       <div class="form-group"><label>Bit Depth</label><input value="${esc(c.codec)}" data-field="codec" data-type="camera" placeholder="24-bit" class="mono"></div>
-      <div class="form-group"><label>Channels</label><input value="${esc(c.fps)}" data-field="fps" data-type="camera" placeholder="8"></div>
+      <div class="form-group"><label>Channels</label><input value="${esc(c.audio)}" data-field="audio" data-type="camera" placeholder="8"></div>
       <div class="form-group"><label>Notes</label><input value="${esc(c.notes)}" data-field="notes" data-type="camera"></div>`;
   } else if (type === 'photo') {
     fields = `

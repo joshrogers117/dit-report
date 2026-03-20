@@ -626,10 +626,10 @@ function cameraCard(c) {
     arri:      { res: '4.6K 3:2', codec: 'ARRIRAW', cs: 'AWG4', gamma: 'LogC4', lut: 'ALF-4 Rec709' },
     sony:      { res: '4K 16:9', codec: 'XAVC', cs: 'S-Gamut3.Cine', gamma: 'S-Log3', lut: 'LC-709TypeA' },
     canon:     { res: '6K', codec: 'Cinema RAW Light', cs: 'Cinema Gamut', gamma: 'Canon Log 2', lut: 'Rec709' },
-    blackmagic:{ res: '6K', codec: 'BRAW', cs: 'BMD Film Gen5', gamma: 'BMD Film Gen5', lut: 'Rec709' },
+    blackmagic:{ res: '6K', codec: 'BRAW', cs: 'Blackmagic Wide Gamut', gamma: 'BMD Film Gen5', lut: 'Rec709' },
     dji:       { res: '8K', codec: 'CinemaDNG', cs: 'D-Gamut', gamma: 'D-Log M', lut: 'Rec709' },
     nikon:     { res: '8K', codec: 'N-RAW', cs: 'N-Gamut', gamma: 'N-Log', lut: 'Rec709' },
-    apple:     { res: '4K', codec: 'Apple ProRes', cs: 'Apple Log', gamma: 'Apple Log', lut: 'Rec709' },
+    apple:     { res: '4K', codec: 'Apple ProRes', cs: 'Rec. 2020 HLG', gamma: 'Apple Log', lut: 'Rec709' },
   };
   const h = hints[brand] || { res: '4K 16:9', codec: 'ProRes 4444', cs: 'Rec709', gamma: 'Log', lut: 'Rec709' };
   if (type === 'camera') {

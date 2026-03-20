@@ -712,6 +712,7 @@ function renderCameras(cameras) {
           <div><div class="cam-spec-label">Resolution</div><div class="cam-spec-value">${c.res}</div></div>
           <div><div class="cam-spec-label">Codec</div><div class="cam-spec-value mono">${c.codec}</div></div>
           <div><div class="cam-spec-label">Colorspace</div><div class="cam-spec-value mono">${c.colorspace}</div></div>
+          ${c.gamma ? `<div><div class="cam-spec-label">Gamma</div><div class="cam-spec-value mono">${c.gamma}</div></div>` : ''}
           <div><div class="cam-spec-label">LUT</div><div class="cam-spec-value mono">${c.lut}</div></div>
           <div><div class="cam-spec-label">FPS</div><div class="cam-spec-value">${c.fps}</div></div>
         </div>

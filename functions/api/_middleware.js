@@ -1,10 +1,5 @@
 import { verifyToken } from '@clerk/backend';
-
-const CLERK_PUBLISHABLE_KEY = 'pk_test_cHJvbXB0LWNvbGxpZS01OC5jbGVyay5hY2NvdW50cy5kZXYk';
-const CLERK_SECRET_KEY = undefined; // Set via Cloudflare Pages secret: CLERK_SECRET_KEY
-
-// Admin user ID — set after first login
-const ADMIN_USER_ID = 'user_3BEZSyDNoiKkCd5Dap0gMUSOw3h';
+import { ADMIN_USER_ID } from '../../lib/auth-constants.js';
 
 // Per-isolate cache of known user IDs (avoids repeated D1 lookups)
 const knownUsers = new Set();
@@ -38,8 +33,8 @@ export async function onRequest(context) {
       jwtKey: env.CLERK_JWT_KEY,
     });
   } catch (err) {
-    console.error('Token verification failed:', err.message, err.reason);
-    return new Response(JSON.stringify({ error: 'Invalid or expired token', detail: err.message }), {
+    console.error('Token verification failed:', err.message);
+    return new Response(JSON.stringify({ error: 'Invalid or expired token' }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' },
     });

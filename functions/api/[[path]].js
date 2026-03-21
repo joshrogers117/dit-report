@@ -568,6 +568,16 @@ router.get('/me', async (request, env) => {
   });
 });
 
+// Sync user profile from Clerk client
+router.put('/me', async (request, env) => {
+  const body = await request.json();
+  const { email, name } = body;
+  await env.DB.prepare(
+    "UPDATE users SET email = ?, name = ?, updated_at = datetime('now') WHERE id = ?"
+  ).bind(email || '', name || '', request.userId).run();
+  return Response.json({ ok: true });
+});
+
 // Pages Function entry point
 export async function onRequest(context) {
   await ensureDB(context.env.DB);

@@ -38,7 +38,8 @@ export async function onRequest(context) {
       secretKey: env.CLERK_SECRET_KEY,
     });
   } catch (err) {
-    return new Response(JSON.stringify({ error: 'Invalid or expired token' }), {
+    console.error('Token verification failed:', err.message, err.reason);
+    return new Response(JSON.stringify({ error: 'Invalid or expired token', detail: err.message }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' },
     });

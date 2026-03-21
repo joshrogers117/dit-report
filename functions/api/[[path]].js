@@ -5,7 +5,7 @@ import { renderStandaloneHTML, renderPrintHTML } from '../../lib/report-renderer
 import { getFullProject } from '../../lib/db-helpers.js';
 
 // ===== Admin =====
-const ADMIN_USER_ID = 'user_PLACEHOLDER'; // Josh's Clerk ID — set after first login
+const ADMIN_USER_ID = 'user_3BEZSyDNoiKkCd5Dap0gMUSOw3h'; // Josh's Clerk ID — set after first login
 function isAdmin(userId) { return userId === ADMIN_USER_ID; }
 
 // ===== Ownership verification helpers =====

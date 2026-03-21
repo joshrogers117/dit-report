@@ -39,6 +39,7 @@ window.addEventListener('load', async () => {
     window.location.href = '/admin.html';
     return;
   }
+  document.getElementById('sign-in').innerHTML = '';
   window.Clerk.mountSignIn(document.getElementById('sign-in'), {
     appearance: {
       variables: {
@@ -47,6 +48,7 @@ window.addEventListener('load', async () => {
         colorText: '#e6edf3',
         colorInputBackground: '#1c2333',
         colorInputText: '#e6edf3',
+        colorNeutral: '#e6edf3',
       },
     },
     afterSignInUrl: '/admin.html',

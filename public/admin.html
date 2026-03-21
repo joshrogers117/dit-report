@@ -218,7 +218,7 @@ let currentUser = null;
 let impersonatingUserId = null;
 
 // ===== Auth =====
-async function initAuth() {
+window.addEventListener('load', async () => {
   await window.Clerk.load();
   if (!window.Clerk.user) {
     window.location.href = '/login.html';
@@ -227,20 +227,7 @@ async function initAuth() {
   // Fetch current user info
   currentUser = await api('/me');
   render();
-}
-
-// Wait for Clerk to be available
-(function waitForClerk() {
-  if (window.Clerk) {
-    initAuth();
-  } else {
-    document.addEventListener('DOMContentLoaded', () => {
-      const check = setInterval(() => {
-        if (window.Clerk) { clearInterval(check); initAuth(); }
-      }, 50);
-    });
-  }
-})();
+});
 
 // ===== Utilities =====
 async function api(path, opts = {}) {

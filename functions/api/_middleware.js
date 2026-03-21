@@ -4,7 +4,7 @@ const CLERK_PUBLISHABLE_KEY = 'pk_test_cHJvbXB0LWNvbGxpZS01OC5jbGVyay5hY2NvdW50c
 const CLERK_SECRET_KEY = undefined; // Set via Cloudflare Pages secret: CLERK_SECRET_KEY
 
 // Admin user ID — set after first login
-const ADMIN_USER_ID = 'user_PLACEHOLDER';
+const ADMIN_USER_ID = 'user_3BEZSyDNoiKkCd5Dap0gMUSOw3h';
 
 // Per-isolate cache of known user IDs (avoids repeated D1 lookups)
 const knownUsers = new Set();

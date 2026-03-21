@@ -575,5 +575,10 @@ router.get('/me', async (request, env) => {
 // Pages Function entry point
 export async function onRequest(context) {
   await ensureDB(context.env.DB);
-  return router.fetch(context.request, context.env);
+  // Copy auth data from middleware (context.data) onto request for itty-router handlers
+  const request = context.request;
+  request.userId = context.data.userId;
+  request.isAdmin = context.data.isAdmin;
+  request.realUserId = context.data.realUserId;
+  return router.fetch(request, context.env);
 }

@@ -56,12 +56,12 @@ export async function onRequest(context) {
   // Check for admin impersonation
   const impersonateHeader = request.headers.get('x-impersonate-user');
   if (impersonateHeader && userId === ADMIN_USER_ID) {
-    request.userId = impersonateHeader;
-    request.isAdmin = true;
-    request.realUserId = userId;
+    context.data.userId = impersonateHeader;
+    context.data.isAdmin = true;
+    context.data.realUserId = userId;
   } else {
-    request.userId = userId;
-    request.isAdmin = userId === ADMIN_USER_ID;
+    context.data.userId = userId;
+    context.data.isAdmin = userId === ADMIN_USER_ID;
   }
 
   // Auto-provision user if not in cache

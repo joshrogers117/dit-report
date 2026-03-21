@@ -27,7 +27,7 @@ grep database_id wrangler.toml
 
 ## Project Structure
 
-- `public/admin.html` — Single-file admin dashboard (HTML + CSS + JS)
+- `public/app.html` — Single-file app dashboard (HTML + CSS + JS)
 - `functions/api/[[path]].js` — Cloudflare Pages Functions API (D1 database)
 - `lib/report-renderer.js` — Server-side HTML/PDF report generation
 - `lib/calculations.js` — Shared calculation utilities

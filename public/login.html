@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign In — DIT Report</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<style>
+:root {
+  --bg: #0e1117; --surface: #161b22; --border: #30363d;
+  --text: #e6edf3; --text-dim: #8b949e; --accent: #e8762b;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg); color: var(--text); min-height: 100vh;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.logo { font-size: 20px; font-weight: 700; margin-bottom: 32px; }
+.logo span { color: var(--accent); }
+#sign-in { min-height: 300px; }
+.loading { color: var(--text-dim); font-size: 14px; }
+</style>
+<script
+  async
+  crossorigin="anonymous"
+  data-clerk-publishable-key="pk_test_cHJvbXB0LWNvbGxpZS01OC5jbGVyay5hY2NvdW50cy5kZXYk"
+  src="https://prompt-collie-58.clerk.accounts.dev/npm/@clerk/clerk-js@5/dist/clerk.browser.js"
+></script>
+</head>
+<body>
+<div class="logo">DIT Report <span>Manager</span></div>
+<div id="sign-in"><div class="loading">Loading...</div></div>
+
+<script>
+window.addEventListener('load', async () => {
+  await window.Clerk.load();
+  if (window.Clerk.user) {
+    window.location.href = '/app.html';
+    return;
+  }
+  document.getElementById('sign-in').innerHTML = '';
+  window.Clerk.mountSignIn(document.getElementById('sign-in'), {
+    appearance: {
+      variables: {
+        colorPrimary: '#e8762b',
+        colorBackground: '#161b22',
+        colorText: '#e6edf3',
+        colorInputBackground: '#1c2333',
+        colorInputText: '#e6edf3',
+        colorNeutral: '#e6edf3',
+      },
+    },
+    afterSignInUrl: '/app.html',
+    afterSignUpUrl: '/app.html',
+  });
+});
+</script>
+</body>
+</html>

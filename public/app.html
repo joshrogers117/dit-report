@@ -37,6 +37,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI'
 .nav .breadcrumb a { color: var(--accent); text-decoration: none; }
 .nav .breadcrumb a:hover { text-decoration: underline; }
 .nav .spacer { flex: 1; }
+.back-btn { background: none; border: 1px solid var(--border); color: var(--text-dim); width: 32px; height: 32px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all .15s; flex-shrink: 0; }
+.back-btn:hover { border-color: var(--accent); color: var(--accent); }
+.back-btn svg { width: 16px; height: 16px; }
 
 /* Cards */
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; box-shadow: var(--shadow); }
@@ -414,7 +417,8 @@ async function renderDashboard(app) {
     ${impersonateBannerHTML()}
     <div class="nav"><h1>DIT Report Manager</h1><div class="spacer"></div>
       <button class="btn btn-primary" onclick="createProject()">+ New Project</button>
-      ${userMenuHTML()}</div>
+      ${userMenuHTML()}
+    </div>
     <div class="container">
       ${projects.length === 0 ? `
         <div class="card" style="text-align:center;padding:48px">
@@ -533,7 +537,7 @@ async function renderProject(app, id) {
   app.innerHTML = `
     ${impersonateBannerHTML()}
     <div class="nav">
-      <h1>DIT Report Manager</h1>
+      <button class="back-btn" onclick="navigate('#/')" title="Back to Projects"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3L5 8l5 5"/></svg></button>
       <div class="breadcrumb"><a href="#/">Projects</a> / ${esc(project.title)}</div>
       <div class="spacer"></div>
       <div class="btn-group">
@@ -668,7 +672,7 @@ async function renderDay(app, projectId, dayId) {
   app.innerHTML = `
     ${impersonateBannerHTML()}
     <div class="nav">
-      <h1>DIT Report Manager</h1>
+      <button class="back-btn" onclick="navigate('#/project/${projectId}')" title="Back to ${esc(project.title)}"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3L5 8l5 5"/></svg></button>
       <div class="breadcrumb">
         <a href="#/">Projects</a> / <a href="#/project/${projectId}">${esc(project.title)}</a> / Day ${String(day.day_number).padStart(2,'0')}
       </div>
@@ -1020,7 +1024,7 @@ async function renderAdminUsers(app) {
   app.innerHTML = `
     ${impersonateBannerHTML()}
     <div class="nav">
-      <h1>DIT Report Manager</h1>
+      <button class="back-btn" onclick="navigate('#/')" title="Back to Projects"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3L5 8l5 5"/></svg></button>
       <div class="breadcrumb"><a href="#/">Projects</a> / Admin</div>
       <div class="spacer"></div>
       ${userMenuHTML()}

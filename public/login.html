@@ -36,7 +36,7 @@ body {
 window.addEventListener('load', async () => {
   await window.Clerk.load();
   if (window.Clerk.user) {
-    window.location.href = '/admin.html';
+    window.location.href = '/app.html';
     return;
   }
   document.getElementById('sign-in').innerHTML = '';
@@ -51,8 +51,8 @@ window.addEventListener('load', async () => {
         colorNeutral: '#e6edf3',
       },
     },
-    afterSignInUrl: '/admin.html',
-    afterSignUpUrl: '/admin.html',
+    afterSignInUrl: '/app.html',
+    afterSignUpUrl: '/app.html',
   });
 });
 </script>

@@ -224,7 +224,12 @@ window.addEventListener('load', async () => {
     window.location.href = '/login.html';
     return;
   }
-  // Fetch current user info
+  // Sync user profile from Clerk to DB, then fetch
+  const clerkUser = window.Clerk.user;
+  await api('/me', { method: 'PUT', body: {
+    email: clerkUser.primaryEmailAddress?.emailAddress || '',
+    name: clerkUser.fullName || '',
+  }});
   currentUser = await api('/me');
   render();
 });

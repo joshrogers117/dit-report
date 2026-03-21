@@ -4,10 +4,6 @@ import { computeDayTotals, computeProjectTotals, computeCumulativeTotals } from 
 import { renderStandaloneHTML, renderPrintHTML } from '../../lib/report-renderer.js';
 import { getFullProject } from '../../lib/db-helpers.js';
 
-// ===== Admin =====
-const ADMIN_USER_ID = 'user_3BEZSyDNoiKkCd5Dap0gMUSOw3h'; // Josh's Clerk ID — set after first login
-function isAdmin(userId) { return userId === ADMIN_USER_ID; }
-
 // ===== Ownership verification helpers =====
 
 async function verifyProjectOwnership(db, projectId, userId) {
@@ -500,7 +496,7 @@ router.get('/projects/:id/export/pdf', async (request, env) => {
 
 // List all users
 router.get('/admin/users', async (request, env) => {
-  if (!isAdmin(request.userId) && !request.isAdmin) {
+  if (!request.isAdmin) {
     return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
   const { results: users } = await env.DB.prepare(
@@ -520,7 +516,7 @@ router.get('/admin/users', async (request, env) => {
 
 // Get single user
 router.get('/admin/users/:id', async (request, env) => {
-  if (!isAdmin(request.userId) && !request.isAdmin) {
+  if (!request.isAdmin) {
     return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
   const user = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(request.params.id).first();
@@ -535,7 +531,7 @@ router.get('/admin/users/:id', async (request, env) => {
 
 // Update user
 router.put('/admin/users/:id', async (request, env) => {
-  if (!isAdmin(request.userId) && !request.isAdmin) {
+  if (!request.isAdmin) {
     return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
   const body = await request.json();
@@ -554,7 +550,7 @@ router.put('/admin/users/:id', async (request, env) => {
 
 // Delete user and all their data
 router.delete('/admin/users/:id', async (request, env) => {
-  if (!isAdmin(request.userId) && !request.isAdmin) {
+  if (!request.isAdmin) {
     return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
   // Delete all projects (cascading deletes handle days/benchmarks/cameras/rolls)
@@ -568,7 +564,7 @@ router.get('/me', async (request, env) => {
   const user = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(request.userId).first();
   return Response.json({
     ...(user || { id: request.userId }),
-    isAdmin: isAdmin(request.isAdmin ? request.realUserId : request.userId),
+    isAdmin: request.isAdmin,
   });
 });
 

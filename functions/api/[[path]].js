@@ -4,7 +4,36 @@ import { computeDayTotals, computeProjectTotals, computeCumulativeTotals } from 
 import { renderStandaloneHTML, renderPrintHTML } from '../../lib/report-renderer.js';
 import { getFullProject } from '../../lib/db-helpers.js';
 
-// ===== AUTO-INIT: schema + sample data on first request =====
+// ===== Admin =====
+const ADMIN_USER_ID = 'user_PLACEHOLDER'; // Josh's Clerk ID — set after first login
+function isAdmin(userId) { return userId === ADMIN_USER_ID; }
+
+// ===== Ownership verification helpers =====
+
+async function verifyProjectOwnership(db, projectId, userId) {
+  return db.prepare('SELECT * FROM projects WHERE id = ? AND user_id = ?').bind(projectId, userId).first();
+}
+
+async function verifyDayOwnership(db, dayId, userId) {
+  return db.prepare(
+    `SELECT sd.* FROM shoot_days sd
+     JOIN projects p ON sd.project_id = p.id
+     WHERE sd.id = ? AND p.user_id = ?`
+  ).bind(dayId, userId).first();
+}
+
+async function verifyItemOwnership(db, table, itemId, userId) {
+  const allowed = ['benchmarks', 'cameras', 'rolls'];
+  if (!allowed.includes(table)) return null;
+  return db.prepare(
+    `SELECT t.* FROM ${table} t
+     JOIN shoot_days sd ON t.day_id = sd.id
+     JOIN projects p ON sd.project_id = p.id
+     WHERE t.id = ? AND p.user_id = ?`
+  ).bind(itemId, userId).first();
+}
+
+// ===== AUTO-INIT: schema on first request =====
 
 let dbInitialized = false;
 
@@ -14,8 +43,20 @@ async function ensureDB(db) {
 
   // Create tables
   await db.batch([
+    db.prepare(`CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      email TEXT NOT NULL DEFAULT '',
+      name TEXT NOT NULL DEFAULT '',
+      company TEXT DEFAULT '',
+      subscription_status TEXT DEFAULT 'free',
+      stripe_customer_id TEXT DEFAULT NULL,
+      stripe_subscription_id TEXT DEFAULT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    )`),
     db.prepare(`CREATE TABLE IF NOT EXISTS projects (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL DEFAULT '',
       title TEXT NOT NULL,
       production_company TEXT DEFAULT '',
       client TEXT DEFAULT '',
@@ -85,62 +126,10 @@ async function ensureDB(db) {
   try { await db.prepare('ALTER TABLE cameras ADD COLUMN audio TEXT DEFAULT \'\'').run(); } catch(e) { /* column already exists */ }
   try { await db.prepare('ALTER TABLE cameras ADD COLUMN source_type TEXT DEFAULT \'camera\'').run(); } catch(e) { /* column already exists */ }
   try { await db.prepare('ALTER TABLE cameras ADD COLUMN gamma TEXT DEFAULT \'\'').run(); } catch(e) { /* column already exists */ }
+  try { await db.prepare('ALTER TABLE projects ADD COLUMN user_id TEXT NOT NULL DEFAULT \'\'').run(); } catch(e) { /* column already exists */ }
 
-  // Seed sample data if database is empty
-  const { count } = await db.prepare('SELECT COUNT(*) as count FROM projects').first();
-  if (count > 0) return;
-
-  await db.prepare(`INSERT INTO projects (id, title, production_company, client, director, producer, dp, first_ac, dit_name, dit_email, dit_phone)
-    VALUES (1, 'Winter 2026 Tech Release', 'Ridge Studios', 'Flexport', 'John David Wright', 'Josh Ferrara', 'Cole Sullivan', 'Andrew Friedrichs', 'Josh Rogers', 'dit@example.com', '+1 (555) 000-0000')`).run();
-
-  // Day 1
-  await db.prepare(`INSERT INTO shoot_days (id, project_id, day_number, date, sort_order) VALUES (1, 1, 1, '2024-11-13', 1)`).run();
-  await db.batch([
-    db.prepare(`INSERT INTO benchmarks (day_id, drive_name, write_speed, read_speed, capacity, format, notes, sort_order) VALUES (1, 'Echo_01', 879.8, 671.0, '4TB', 'APFS', 'SanDisk Extreme 55AE', 1)`),
-    db.prepare(`INSERT INTO benchmarks (day_id, drive_name, write_speed, read_speed, capacity, format, notes, sort_order) VALUES (1, 'Echo_02', 878.7, 668.8, '4TB', 'APFS', 'SanDisk Extreme 55AE', 2)`),
-    db.prepare(`INSERT INTO cameras (day_id, camera_name, resolution, codec, colorspace, lut, fps, label, notes, sort_order) VALUES (1, 'V-RAPTOR XL', '8K 17:9', 'R3D MQ', 'LOG3G10', 'REC709', '23.976', 'ACAM', '', 1)`),
-    db.prepare(`INSERT INTO cameras (day_id, camera_name, resolution, codec, colorspace, lut, fps, label, notes, sort_order) VALUES (1, 'KOMODO X', '6K 17:9', 'R3D MQ', 'LOG3G10', 'REC709', '23.976', 'BCAM', '', 2)`),
-    db.prepare(`INSERT INTO cameras (day_id, camera_name, resolution, codec, colorspace, lut, fps, label, notes, sort_order) VALUES (1, 'ALEXA 35', '4.6K 3:2', 'ARRIRAW HDE', 'LogC4', 'ALF-4 Rec709', '23.976', 'CCAM', '', 3)`),
-    db.prepare(`INSERT INTO rolls (day_id, roll_name, is_break, card_serial, gb, duration_tc, frames, master, backup, notes, sort_order) VALUES (1, 'B001_1113PV', 0, 'AOGPAWF', 267.75, '00:26:35:14', 38294, 1, 1, '', 1)`),
-    db.prepare(`INSERT INTO rolls (day_id, roll_name, is_break, card_serial, gb, duration_tc, frames, master, backup, notes, sort_order) VALUES (1, 'C001_1113RK', 0, 'CDX-38147', 42.61, '00:03:23:01', 4873, 1, 1, 'Codex Compact Drive', 2)`),
-    db.prepare(`INSERT INTO rolls (day_id, roll_name, is_break, card_serial, gb, duration_tc, frames, master, backup, notes, sort_order) VALUES (1, 'A001_11121K', 0, 'ARB4BYL', 1004.87, '00:56:17:00', 81048, 1, 1, '', 3)`),
-  ]);
-
-  // Day 2
-  await db.prepare(`INSERT INTO shoot_days (id, project_id, day_number, date, sort_order) VALUES (2, 1, 2, '2024-11-14', 2)`).run();
-  await db.batch([
-    db.prepare(`INSERT INTO benchmarks (day_id, drive_name, write_speed, read_speed, capacity, format, notes, sort_order) VALUES (2, 'Echo_01', 879.8, 671.0, '4TB', 'APFS', 'SanDisk Extreme 55AE', 1)`),
-    db.prepare(`INSERT INTO benchmarks (day_id, drive_name, write_speed, read_speed, capacity, format, notes, sort_order) VALUES (2, 'Echo_02', 878.7, 668.8, '4TB', 'APFS', 'SanDisk Extreme 55AE', 2)`),
-    db.prepare(`INSERT INTO cameras (day_id, camera_name, resolution, codec, colorspace, lut, fps, label, notes, sort_order) VALUES (2, 'V-RAPTOR XL', '8K 17:9', 'R3D MQ', 'LOG3G10', 'REC709', '23.976', 'ACAM', '', 1)`),
-    db.prepare(`INSERT INTO cameras (day_id, camera_name, resolution, codec, colorspace, lut, fps, label, notes, sort_order) VALUES (2, 'KOMODO X', '6K 17:9', 'R3D MQ', 'LOG3G10', 'REC709', '23.976', 'BCAM', '', 2)`),
-    db.prepare(`INSERT INTO cameras (day_id, camera_name, resolution, codec, colorspace, lut, fps, label, notes, sort_order) VALUES (2, 'ALEXA 35', '4.6K 3:2', 'ARRIRAW HDE', 'LogC4', 'ALF-4 Rec709', '23.976', 'CCAM', '', 3)`),
-    db.prepare(`INSERT INTO rolls (day_id, roll_name, is_break, card_serial, gb, duration_tc, frames, master, backup, notes, sort_order) VALUES (2, 'A002_1114F4', 0, 'AR2JAQY', 613.14, '00:34:20:10', 49450, 1, 1, '478 MB/s READ', 1)`),
-    db.prepare(`INSERT INTO rolls (day_id, roll_name, is_break, card_serial, gb, duration_tc, frames, master, backup, notes, sort_order) VALUES (2, 'B002_1114N0', 0, 'AU4YPWD', 305.65, '00:30:22:21', 43749, 1, 1, '474 MB/s READ', 2)`),
-    db.prepare(`INSERT INTO rolls (day_id, roll_name, is_break, card_serial, gb, duration_tc, frames, master, backup, notes, sort_order) VALUES (2, 'A003_1114MX', 0, 'AW6PKEB', 542.77, '00:30:23:22', 43774, 1, 1, '477 MB/s READ', 3)`),
-    db.prepare(`INSERT INTO rolls (day_id, roll_name, is_break, card_serial, gb, duration_tc, frames, master, backup, notes, sort_order) VALUES (2, 'LUNCH', 1, '', 0, '00:00:00:00', 0, 0, 0, '', 4)`),
-    db.prepare(`INSERT INTO rolls (day_id, roll_name, is_break, card_serial, gb, duration_tc, frames, master, backup, notes, sort_order) VALUES (2, 'A004_1114WR', 0, 'AWIGXJC', 313.53, '00:17:33:15', 25287, 1, 1, '475 MB/s READ', 5)`),
-    db.prepare(`INSERT INTO rolls (day_id, roll_name, is_break, card_serial, gb, duration_tc, frames, master, backup, notes, sort_order) VALUES (2, 'A005_1114XR', 0, 'ARB4BYL', 163.03, '00:09:07:20', 13148, 1, 1, '470 MB/s READ', 6)`),
-    db.prepare(`INSERT INTO rolls (day_id, roll_name, is_break, card_serial, gb, duration_tc, frames, master, backup, notes, sort_order) VALUES (2, 'A006_1114SC', 0, 'AR2JAQY', 69.32, '00:03:52:22', 5590, 1, 1, '473 MB/s READ', 7)`),
-    db.prepare(`INSERT INTO rolls (day_id, roll_name, is_break, card_serial, gb, duration_tc, frames, master, backup, notes, sort_order) VALUES (2, 'C002_1114FY', 0, 'CDX-38291', 18.44, '00:01:28:06', 2118, 1, 1, 'Codex Compact Drive', 8)`),
-  ]);
-
-  // Day 3
-  await db.prepare(`INSERT INTO shoot_days (id, project_id, day_number, date, sort_order) VALUES (3, 1, 3, '2024-11-15', 3)`).run();
-  await db.batch([
-    db.prepare(`INSERT INTO benchmarks (day_id, drive_name, write_speed, read_speed, capacity, format, notes, sort_order) VALUES (3, 'Frank_01', 2668.9, 2669.2, '4TB', 'APFS', 'PCIe SSD Media - Glyph', 1)`),
-    db.prepare(`INSERT INTO benchmarks (day_id, drive_name, write_speed, read_speed, capacity, format, notes, sort_order) VALUES (3, 'Frank_02', 2639.6, 2674.2, '4TB', 'APFS', 'PCIe SSD Media - Glyph', 2)`),
-    db.prepare(`INSERT INTO cameras (day_id, camera_name, resolution, codec, colorspace, lut, fps, label, notes, sort_order) VALUES (3, 'V-RAPTOR XL', '8K 17:9', 'R3D MQ', 'LOG3G10', 'REC709', '23.976', 'ACAM', '', 1)`),
-    db.prepare(`INSERT INTO cameras (day_id, camera_name, resolution, codec, colorspace, lut, fps, label, notes, sort_order) VALUES (3, 'KOMODO X', '6K 17:9', 'R3D MQ', 'LOG3G10', 'REC709', '23.976', 'BCAM', '', 2)`),
-    db.prepare(`INSERT INTO cameras (day_id, camera_name, resolution, codec, colorspace, lut, fps, label, notes, sort_order) VALUES (3, 'ALEXA 35', '4.6K 3:2', 'ARRIRAW HDE', 'LogC4', 'ALF-4 Rec709', '23.976', 'CCAM', '', 3)`),
-    db.prepare(`INSERT INTO rolls (day_id, roll_name, is_break, card_serial, gb, duration_tc, frames, master, backup, notes, sort_order) VALUES (3, 'C003_1115SJ', 0, 'CDX-38503', 35.82, '00:02:51:10', 4114, 1, 1, 'Codex Compact Drive', 1)`),
-    db.prepare(`INSERT INTO rolls (day_id, roll_name, is_break, card_serial, gb, duration_tc, frames, master, backup, notes, sort_order) VALUES (3, 'A007_1115XD', 0, 'AW6PKEB', 226.4, '00:12:40:20', 18260, 1, 1, '683 MB/s READ burst, then slows down to 370 MB/s', 2)`),
-    db.prepare(`INSERT INTO rolls (day_id, roll_name, is_break, card_serial, gb, duration_tc, frames, master, backup, notes, sort_order) VALUES (3, 'B003_1115TZ', 0, 'APLCHRY', 178.68, '00:17:45:18', 25578, 1, 1, '', 3)`),
-    db.prepare(`INSERT INTO rolls (day_id, roll_name, is_break, card_serial, gb, duration_tc, frames, master, backup, notes, sort_order) VALUES (3, 'A008_1115EP', 0, 'AWIGXJC', 267.46, '00:14:58:19', 21571, 1, 1, '', 4)`),
-    db.prepare(`INSERT INTO rolls (day_id, roll_name, is_break, card_serial, gb, duration_tc, frames, master, backup, notes, sort_order) VALUES (3, 'LUNCH', 1, '', 0, '00:00:00:00', 0, 0, 0, '', 5)`),
-    db.prepare(`INSERT INTO rolls (day_id, roll_name, is_break, card_serial, gb, duration_tc, frames, master, backup, notes, sort_order) VALUES (3, 'A009_1115W8', 0, 'ARB4BYL', 531.7, '00:29:46:18', 42882, 1, 1, '', 6)`),
-    db.prepare(`INSERT INTO rolls (day_id, roll_name, is_break, card_serial, gb, duration_tc, frames, master, backup, notes, sort_order) VALUES (3, 'A010_1115LD', 0, 'AR2JAQY', 20.74, '00:01:09:16', 1672, 1, 1, 'Final portrait', 7)`),
-    db.prepare(`INSERT INTO rolls (day_id, roll_name, is_break, card_serial, gb, duration_tc, frames, master, backup, notes, sort_order) VALUES (3, 'B004_1115MP', 0, 'AOGPAWF', 177.6, '00:17:38:16', 25408, 1, 1, '', 8)`),
-  ]);
+  // Index for user_id lookups
+  try { await db.prepare('CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id)').run(); } catch(e) { /* already exists */ }
 }
 
 const router = AutoRouter({ base: '/api' });
@@ -149,7 +138,10 @@ const router = AutoRouter({ base: '/api' });
 
 // List all projects
 router.get('/projects', async (request, env) => {
-  const { results: projects } = await env.DB.prepare('SELECT * FROM projects ORDER BY updated_at DESC').all();
+  const userId = request.userId;
+  const { results: projects } = await env.DB.prepare(
+    'SELECT * FROM projects WHERE user_id = ? ORDER BY updated_at DESC'
+  ).bind(userId).all();
 
   const result = await Promise.all(projects.map(async p => {
     const { results: days } = await env.DB.prepare(
@@ -172,13 +164,14 @@ router.get('/projects', async (request, env) => {
 
 // Create project
 router.post('/projects', async (request, env) => {
+  const userId = request.userId;
   const body = await request.json();
   const { title, production_company, client, director, producer, dp, first_ac, dit_name, dit_email, dit_phone } = body;
   const result = await env.DB.prepare(`
-    INSERT INTO projects (title, production_company, client, director, producer, dp, first_ac, dit_name, dit_email, dit_phone)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO projects (user_id, title, production_company, client, director, producer, dp, first_ac, dit_name, dit_email, dit_phone)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
-    title || 'Untitled Project', production_company || '', client || '', director || '',
+    userId, title || 'Untitled Project', production_company || '', client || '', director || '',
     producer || '', dp || '', first_ac || '', dit_name || '', dit_email || '', dit_phone || ''
   ).run();
   return Response.json({ id: result.meta.last_row_id });
@@ -186,13 +179,16 @@ router.post('/projects', async (request, env) => {
 
 // Get full project
 router.get('/projects/:id', async (request, env) => {
-  const project = await getFullProject(env.DB, request.params.id);
+  const project = await getFullProject(env.DB, request.params.id, request.userId);
   if (!project) return Response.json({ error: 'Project not found' }, { status: 404 });
   return Response.json(project);
 });
 
 // Update project
 router.put('/projects/:id', async (request, env) => {
+  const owned = await verifyProjectOwnership(env.DB, request.params.id, request.userId);
+  if (!owned) return Response.json({ error: 'Project not found' }, { status: 404 });
+
   const body = await request.json();
   const fields = ['title', 'production_company', 'client', 'director', 'producer', 'dp', 'first_ac', 'dit_name', 'dit_email', 'dit_phone', 'archived'];
   const updates = [];
@@ -212,6 +208,8 @@ router.put('/projects/:id', async (request, env) => {
 
 // Delete project
 router.delete('/projects/:id', async (request, env) => {
+  const owned = await verifyProjectOwnership(env.DB, request.params.id, request.userId);
+  if (!owned) return Response.json({ error: 'Project not found' }, { status: 404 });
   await env.DB.prepare('DELETE FROM projects WHERE id = ?').bind(request.params.id).run();
   return Response.json({ ok: true });
 });
@@ -221,6 +219,9 @@ router.delete('/projects/:id', async (request, env) => {
 // Create day
 router.post('/projects/:pid/days', async (request, env) => {
   const pid = request.params.pid;
+  const owned = await verifyProjectOwnership(env.DB, pid, request.userId);
+  if (!owned) return Response.json({ error: 'Project not found' }, { status: 404 });
+
   const body = await request.json();
   const maxOrder = await env.DB.prepare('SELECT COALESCE(MAX(sort_order), 0) as m FROM shoot_days WHERE project_id = ?').bind(pid).first();
   const maxDay = await env.DB.prepare('SELECT COALESCE(MAX(day_number), 0) as m FROM shoot_days WHERE project_id = ?').bind(pid).first();
@@ -233,7 +234,7 @@ router.post('/projects/:pid/days', async (request, env) => {
 
 // Get single day
 router.get('/days/:id', async (request, env) => {
-  const day = await env.DB.prepare('SELECT * FROM shoot_days WHERE id = ?').bind(request.params.id).first();
+  const day = await verifyDayOwnership(env.DB, request.params.id, request.userId);
   if (!day) return Response.json({ error: 'Day not found' }, { status: 404 });
   const [benchRes, camRes, rollRes] = await Promise.all([
     env.DB.prepare('SELECT * FROM benchmarks WHERE day_id = ? ORDER BY sort_order').bind(day.id).all(),
@@ -245,6 +246,9 @@ router.get('/days/:id', async (request, env) => {
 
 // Update day
 router.put('/days/:id', async (request, env) => {
+  const day = await verifyDayOwnership(env.DB, request.params.id, request.userId);
+  if (!day) return Response.json({ error: 'Day not found' }, { status: 404 });
+
   const body = await request.json();
   const stmts = [];
   if (body.date !== undefined) stmts.push(env.DB.prepare('UPDATE shoot_days SET date = ? WHERE id = ?').bind(body.date, request.params.id));
@@ -255,13 +259,15 @@ router.put('/days/:id', async (request, env) => {
 
 // Delete day
 router.delete('/days/:id', async (request, env) => {
+  const day = await verifyDayOwnership(env.DB, request.params.id, request.userId);
+  if (!day) return Response.json({ error: 'Day not found' }, { status: 404 });
   await env.DB.prepare('DELETE FROM shoot_days WHERE id = ?').bind(request.params.id).run();
   return Response.json({ ok: true });
 });
 
 // Clone day
 router.post('/days/:id/clone', async (request, env) => {
-  const src = await env.DB.prepare('SELECT * FROM shoot_days WHERE id = ?').bind(request.params.id).first();
+  const src = await verifyDayOwnership(env.DB, request.params.id, request.userId);
   if (!src) return Response.json({ error: 'Day not found' }, { status: 404 });
 
   const body = await request.json().catch(() => ({}));
@@ -298,6 +304,9 @@ router.post('/days/:id/clone', async (request, env) => {
 // ===== BENCHMARKS =====
 
 router.post('/days/:did/benchmarks', async (request, env) => {
+  const day = await verifyDayOwnership(env.DB, request.params.did, request.userId);
+  if (!day) return Response.json({ error: 'Day not found' }, { status: 404 });
+
   const did = request.params.did;
   const body = await request.json();
   const maxOrder = await env.DB.prepare('SELECT COALESCE(MAX(sort_order), 0) as m FROM benchmarks WHERE day_id = ?').bind(did).first();
@@ -308,6 +317,9 @@ router.post('/days/:did/benchmarks', async (request, env) => {
 });
 
 router.put('/benchmarks/:id', async (request, env) => {
+  const item = await verifyItemOwnership(env.DB, 'benchmarks', request.params.id, request.userId);
+  if (!item) return Response.json({ error: 'Not found' }, { status: 404 });
+
   const body = await request.json();
   const fields = ['drive_name', 'write_speed', 'read_speed', 'capacity', 'format', 'notes', 'sort_order'];
   const updates = [];
@@ -322,6 +334,8 @@ router.put('/benchmarks/:id', async (request, env) => {
 });
 
 router.delete('/benchmarks/:id', async (request, env) => {
+  const item = await verifyItemOwnership(env.DB, 'benchmarks', request.params.id, request.userId);
+  if (!item) return Response.json({ error: 'Not found' }, { status: 404 });
   await env.DB.prepare('DELETE FROM benchmarks WHERE id = ?').bind(request.params.id).run();
   return Response.json({ ok: true });
 });
@@ -329,6 +343,9 @@ router.delete('/benchmarks/:id', async (request, env) => {
 // ===== CAMERAS =====
 
 router.post('/days/:did/cameras', async (request, env) => {
+  const day = await verifyDayOwnership(env.DB, request.params.did, request.userId);
+  if (!day) return Response.json({ error: 'Day not found' }, { status: 404 });
+
   const did = request.params.did;
   const body = await request.json();
   const maxOrder = await env.DB.prepare('SELECT COALESCE(MAX(sort_order), 0) as m FROM cameras WHERE day_id = ?').bind(did).first();
@@ -339,6 +356,9 @@ router.post('/days/:did/cameras', async (request, env) => {
 });
 
 router.put('/cameras/:id', async (request, env) => {
+  const item = await verifyItemOwnership(env.DB, 'cameras', request.params.id, request.userId);
+  if (!item) return Response.json({ error: 'Not found' }, { status: 404 });
+
   const body = await request.json();
   const fields = ['source_type', 'camera_name', 'resolution', 'codec', 'colorspace', 'gamma', 'lut', 'fps', 'audio', 'label', 'notes', 'sort_order'];
   const updates = [];
@@ -353,7 +373,7 @@ router.put('/cameras/:id', async (request, env) => {
 });
 
 router.post('/cameras/:id/duplicate', async (request, env) => {
-  const src = await env.DB.prepare('SELECT * FROM cameras WHERE id = ?').bind(request.params.id).first();
+  const src = await verifyItemOwnership(env.DB, 'cameras', request.params.id, request.userId);
   if (!src) return Response.json({ error: 'Not found' }, { status: 404 });
   const maxOrder = await env.DB.prepare('SELECT COALESCE(MAX(sort_order), 0) as m FROM cameras WHERE day_id = ?').bind(src.day_id).first();
   const result = await env.DB.prepare(
@@ -363,6 +383,8 @@ router.post('/cameras/:id/duplicate', async (request, env) => {
 });
 
 router.delete('/cameras/:id', async (request, env) => {
+  const item = await verifyItemOwnership(env.DB, 'cameras', request.params.id, request.userId);
+  if (!item) return Response.json({ error: 'Not found' }, { status: 404 });
   await env.DB.prepare('DELETE FROM cameras WHERE id = ?').bind(request.params.id).run();
   return Response.json({ ok: true });
 });
@@ -370,6 +392,9 @@ router.delete('/cameras/:id', async (request, env) => {
 // ===== ROLLS =====
 
 router.post('/days/:did/rolls', async (request, env) => {
+  const day = await verifyDayOwnership(env.DB, request.params.did, request.userId);
+  if (!day) return Response.json({ error: 'Day not found' }, { status: 404 });
+
   const did = request.params.did;
   const body = await request.json();
   const maxOrder = await env.DB.prepare('SELECT COALESCE(MAX(sort_order), 0) as m FROM rolls WHERE day_id = ?').bind(did).first();
@@ -380,6 +405,9 @@ router.post('/days/:did/rolls', async (request, env) => {
 });
 
 router.put('/rolls/:id', async (request, env) => {
+  const item = await verifyItemOwnership(env.DB, 'rolls', request.params.id, request.userId);
+  if (!item) return Response.json({ error: 'Not found' }, { status: 404 });
+
   const body = await request.json();
   const fields = ['roll_name', 'is_break', 'card_serial', 'gb', 'duration_tc', 'frames', 'master', 'backup', 'notes', 'sort_order'];
   const updates = [];
@@ -397,12 +425,17 @@ router.put('/rolls/:id', async (request, env) => {
 });
 
 router.delete('/rolls/:id', async (request, env) => {
+  const item = await verifyItemOwnership(env.DB, 'rolls', request.params.id, request.userId);
+  if (!item) return Response.json({ error: 'Not found' }, { status: 404 });
   await env.DB.prepare('DELETE FROM rolls WHERE id = ?').bind(request.params.id).run();
   return Response.json({ ok: true });
 });
 
 // Reorder rolls
 router.put('/days/:did/rolls/reorder', async (request, env) => {
+  const day = await verifyDayOwnership(env.DB, request.params.did, request.userId);
+  if (!day) return Response.json({ error: 'Day not found' }, { status: 404 });
+
   const body = await request.json();
   const { order } = body;
   if (!Array.isArray(order)) return Response.json({ error: 'order must be an array' }, { status: 400 });
@@ -418,7 +451,7 @@ router.put('/days/:did/rolls/reorder', async (request, env) => {
 
 // HTML export
 router.get('/projects/:id/export/html', async (request, env) => {
-  const project = await getFullProject(env.DB, request.params.id);
+  const project = await getFullProject(env.DB, request.params.id, request.userId);
   if (!project) return Response.json({ error: 'Project not found' }, { status: 404 });
   const html = renderStandaloneHTML(project);
   return new Response(html, {
@@ -431,7 +464,7 @@ router.get('/projects/:id/export/html', async (request, env) => {
 
 // PDF export via Browser Rendering
 router.get('/projects/:id/export/pdf', async (request, env) => {
-  const project = await getFullProject(env.DB, request.params.id);
+  const project = await getFullProject(env.DB, request.params.id, request.userId);
   if (!project) return Response.json({ error: 'Project not found' }, { status: 404 });
   const html = renderPrintHTML(project);
 
@@ -461,6 +494,82 @@ router.get('/projects/:id/export/pdf', async (request, env) => {
     if (browser) await browser.close();
     return Response.json({ error: 'PDF generation failed: ' + err.message }, { status: 500 });
   }
+});
+
+// ===== ADMIN ROUTES =====
+
+// List all users
+router.get('/admin/users', async (request, env) => {
+  if (!isAdmin(request.userId) && !request.isAdmin) {
+    return Response.json({ error: 'Forbidden' }, { status: 403 });
+  }
+  const { results: users } = await env.DB.prepare(
+    'SELECT * FROM users ORDER BY created_at DESC'
+  ).all();
+
+  // Get project counts for each user
+  const usersWithCounts = await Promise.all(users.map(async u => {
+    const row = await env.DB.prepare(
+      'SELECT COUNT(*) as count FROM projects WHERE user_id = ?'
+    ).bind(u.id).first();
+    return { ...u, project_count: row.count };
+  }));
+
+  return Response.json(usersWithCounts);
+});
+
+// Get single user
+router.get('/admin/users/:id', async (request, env) => {
+  if (!isAdmin(request.userId) && !request.isAdmin) {
+    return Response.json({ error: 'Forbidden' }, { status: 403 });
+  }
+  const user = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(request.params.id).first();
+  if (!user) return Response.json({ error: 'User not found' }, { status: 404 });
+
+  const { results: projects } = await env.DB.prepare(
+    'SELECT id, title, archived, created_at, updated_at FROM projects WHERE user_id = ? ORDER BY updated_at DESC'
+  ).bind(user.id).all();
+
+  return Response.json({ ...user, projects });
+});
+
+// Update user
+router.put('/admin/users/:id', async (request, env) => {
+  if (!isAdmin(request.userId) && !request.isAdmin) {
+    return Response.json({ error: 'Forbidden' }, { status: 403 });
+  }
+  const body = await request.json();
+  const fields = ['name', 'company', 'subscription_status'];
+  const updates = [];
+  const values = [];
+  for (const f of fields) {
+    if (body[f] !== undefined) { updates.push(`${f} = ?`); values.push(body[f]); }
+  }
+  if (updates.length === 0) return Response.json({ ok: true });
+  updates.push("updated_at = datetime('now')");
+  values.push(request.params.id);
+  await env.DB.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).bind(...values).run();
+  return Response.json({ ok: true });
+});
+
+// Delete user and all their data
+router.delete('/admin/users/:id', async (request, env) => {
+  if (!isAdmin(request.userId) && !request.isAdmin) {
+    return Response.json({ error: 'Forbidden' }, { status: 403 });
+  }
+  // Delete all projects (cascading deletes handle days/benchmarks/cameras/rolls)
+  await env.DB.prepare('DELETE FROM projects WHERE user_id = ?').bind(request.params.id).run();
+  await env.DB.prepare('DELETE FROM users WHERE id = ?').bind(request.params.id).run();
+  return Response.json({ ok: true });
+});
+
+// Get current user info (for frontend)
+router.get('/me', async (request, env) => {
+  const user = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(request.userId).first();
+  return Response.json({
+    ...(user || { id: request.userId }),
+    isAdmin: isAdmin(request.isAdmin ? request.realUserId : request.userId),
+  });
 });
 
 // Pages Function entry point

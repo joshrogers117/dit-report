@@ -35,7 +35,7 @@ export async function onRequest(context) {
   let payload;
   try {
     payload = await verifyToken(token, {
-      secretKey: env.CLERK_SECRET_KEY,
+      jwtKey: env.CLERK_JWT_KEY,
     });
   } catch (err) {
     console.error('Token verification failed:', err.message, err.reason);

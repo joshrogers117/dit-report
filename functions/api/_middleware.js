@@ -36,7 +36,6 @@ export async function onRequest(context) {
   try {
     payload = await verifyToken(token, {
       secretKey: env.CLERK_SECRET_KEY,
-      authorizedParties: ['https://dit.traderjosh.com', 'https://dit.dev.traderjosh.com', 'http://localhost:8788'],
     });
   } catch (err) {
     return new Response(JSON.stringify({ error: 'Invalid or expired token' }), {

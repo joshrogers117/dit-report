@@ -397,6 +397,11 @@ function stopImpersonating() {
 // ===== Dashboard =====
 async function renderDashboard(app) {
   const projects = await api('/projects');
+  if (!Array.isArray(projects)) {
+    console.error('API /projects returned:', projects);
+    app.innerHTML = '<div class="container"><div class="card"><h2>Error</h2><p>' + esc(projects.error || JSON.stringify(projects)) + '</p></div></div>';
+    return;
+  }
   const active = projects.filter(p => !p.archived);
   const completed = projects.filter(p => p.archived);
 

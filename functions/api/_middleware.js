@@ -1,5 +1,6 @@
 import { verifyToken } from '@clerk/backend';
 import { ADMIN_USER_ID } from '../../lib/auth-constants.js';
+import { seedDemoProject } from '../../lib/demo-project.js';
 
 // Per-isolate cache of known user IDs (avoids repeated D1 lookups)
 const knownUsers = new Set();
@@ -69,6 +70,8 @@ export async function onRequest(context) {
         await env.DB.prepare(
           'INSERT INTO users (id, email, name) VALUES (?, ?, ?)'
         ).bind(userId, email, name).run();
+        // Seed a demo project for new users
+        try { await seedDemoProject(env.DB, userId); } catch (e) { console.error('Demo seed error:', e.message); }
       }
       knownUsers.add(userId);
     } catch (err) {

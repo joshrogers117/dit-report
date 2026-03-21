@@ -1,5 +1,18 @@
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY,
+  email TEXT NOT NULL DEFAULT '',
+  name TEXT NOT NULL DEFAULT '',
+  company TEXT DEFAULT '',
+  subscription_status TEXT DEFAULT 'free',
+  stripe_customer_id TEXT DEFAULT NULL,
+  stripe_subscription_id TEXT DEFAULT NULL,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS projects (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL DEFAULT '',
   title TEXT NOT NULL,
   production_company TEXT DEFAULT '',
   client TEXT DEFAULT '',
@@ -14,6 +27,8 @@ CREATE TABLE IF NOT EXISTS projects (
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now'))
 );
+
+CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id);
 
 CREATE TABLE IF NOT EXISTS shoot_days (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

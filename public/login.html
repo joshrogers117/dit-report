@@ -21,19 +21,19 @@ body {
 #sign-in { min-height: 300px; }
 .loading { color: var(--text-dim); font-size: 14px; }
 </style>
+<script
+  async
+  crossorigin="anonymous"
+  data-clerk-publishable-key="pk_test_cHJvbXB0LWNvbGxpZS01OC5jbGVyay5hY2NvdW50cy5kZXYk"
+  src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"
+></script>
 </head>
 <body>
 <div class="logo">DIT Report <span>Manager</span></div>
 <div id="sign-in"><div class="loading">Loading...</div></div>
 
 <script>
-// Load Clerk SDK dynamically to avoid race conditions
-const script = document.createElement('script');
-script.src = 'https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js';
-script.setAttribute('data-clerk-publishable-key', 'pk_test_cHJvbXB0LWNvbGxpZS01OC5jbGVyay5hY2NvdW50cy5kZXYk');
-script.setAttribute('crossorigin', 'anonymous');
-script.async = true;
-script.addEventListener('load', async () => {
+window.addEventListener('load', async () => {
   await window.Clerk.load();
   if (window.Clerk.user) {
     window.location.href = '/admin.html';
@@ -53,7 +53,6 @@ script.addEventListener('load', async () => {
     afterSignUpUrl: '/admin.html',
   });
 });
-document.head.appendChild(script);
 </script>
 </body>
 </html>

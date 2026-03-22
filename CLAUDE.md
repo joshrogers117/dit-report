@@ -1,5 +1,10 @@
 # DIT Report Manager — Developer Notes
 
+## Environments
+
+- **Production:** `dit.traderjosh.com` (main branch)
+- **Dev:** `dit.dev.traderjosh.com` (dev branch)
+
 ## Branch & Database Isolation
 
 dev and main use **separate D1 databases** via different `database_id` values in `wrangler.toml`:
@@ -25,12 +30,36 @@ grep database_id wrangler.toml
 # Should show: 2aa70294-3246-41fa-ae04-c396cdbc1335 on main
 ```
 
+## Authentication
+
+- **Clerk** handles authentication (JWT-based)
+- Clerk publishable keys and FAPI URLs are selected dynamically in `app.html` and `login.html` based on `location.hostname`
+- API middleware (`functions/api/_middleware.js`) validates Bearer tokens via `verifyToken` with `CLERK_JWT_KEY`
+- Public (unauthenticated) API paths: `/api/health`, `/api/status`, `/api/webhooks/clerk`
+- Admin user ID is defined in `lib/auth-constants.js`; admins can impersonate users via `x-impersonate-user` header
+- New users are auto-provisioned in the DB on first request and seeded with a demo project (`lib/demo-project.js`)
+
 ## Project Structure
 
 - `public/app.html` — Single-file app dashboard (HTML + CSS + JS)
-- `functions/api/[[path]].js` — Cloudflare Pages Functions API (D1 database)
-- `lib/report-renderer.js` — Server-side HTML/PDF report generation
-- `lib/calculations.js` — Shared calculation utilities
-- `lib/timecode.js` — Timecode math utilities
-- `schema.sql` — Database schema reference
+- `public/login.html` — Clerk sign-in page
+- `public/404.html` — Custom 404 error page
+- `public/_redirects` — Cloudflare Pages routing rules
 - `public/icons/cameras/` — Monochrome brand SVGs (currentColor) for 8 camera manufacturers
+- `functions/api/_middleware.js` — Auth middleware (Clerk JWT verification, user provisioning)
+- `functions/api/[[path]].js` — Cloudflare Pages Functions API (itty-router, D1 database)
+- `lib/report-renderer.js` — Server-side HTML/PDF report generation (inline brand SVGs, theme support)
+- `lib/calculations.js` — Shared calculation utilities (day/project/cumulative totals)
+- `lib/timecode.js` — Timecode math utilities (parse, add, sum HH:MM:SS:FF)
+- `lib/db-helpers.js` — Shared DB queries (getFullProject)
+- `lib/demo-project.js` — Demo project seeder for new users
+- `lib/auth-constants.js` — Admin user ID constant
+- `schema.sql` — Database schema reference
+- `migrations/` — D1 migration files
+
+## Security Notes
+
+- The repo is **public**. Never commit real personal data, API keys, or secrets.
+- Git history was scrubbed (2026-03-22) to remove files that contained real names and contact info (`index.html`, `seed.js`, `seed.sql`).
+- All API routes require authentication except the public paths listed above. Every data query filters by `user_id` with ownership verification.
+- `public/_redirects` sends `/app/*` to login to prevent stale Cloudflare Pages assets from being served at unexpected paths.

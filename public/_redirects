@@ -1,3 +1,4 @@
 / /app.html 302
 /admin /app.html 302
 /admin.html /app.html 301
+/app/* /login.html 302

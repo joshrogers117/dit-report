@@ -592,7 +592,11 @@ router.put('/me', async (request, env) => {
   await env.DB.prepare(
     "UPDATE users SET email = ?, name = ?, updated_at = datetime('now') WHERE id = ?"
   ).bind(email || '', name || '', request.userId).run();
-  return Response.json({ ok: true });
+  const user = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(request.userId).first();
+  return Response.json({
+    ...(user || { id: request.userId }),
+    isAdmin: request.isAdmin,
+  });
 });
 
 // ===== CLERK WEBHOOKS =====

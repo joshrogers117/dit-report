@@ -14,6 +14,8 @@
 <meta name="twitter:description" content="Track and report camera offloads, benchmarks, and shoot day data for film productions.">
 <meta name="twitter:image" content="/og-image.png">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="preconnect" href="https://clerk.dit.traderjosh.com" crossorigin>
+<link rel="preconnect" href="https://prompt-collie-58.clerk.accounts.dev" crossorigin>
 <script>
   const isProd = location.hostname === 'dit.traderjosh.com';
   const s = document.createElement('script');
@@ -186,8 +188,19 @@ input.invalid { border-color: var(--danger); }
 /* Summary row */
 .summary-row td { font-weight: 700; background: var(--surface2); border-top: 2px solid var(--border); }
 
-/* Auth loading */
-.auth-loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; color: var(--text-dim); font-size: 14px; }
+/* Skeleton loading */
+@keyframes shimmer { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
+.skel { background: linear-gradient(90deg, var(--surface) 25%, var(--surface2) 50%, var(--surface) 75%); background-size: 800px 100%; animation: shimmer 1.5s infinite; border-radius: 6px; }
+.skel-nav { height: 48px; border-bottom: 1px solid var(--border); background: var(--surface); }
+.skel-container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+.skel-section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.skel-section-header .skel { height: 16px; width: 140px; }
+.skel-section-header::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.skel-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+.skel-card .skel-title { height: 18px; width: 60%; margin-bottom: 8px; }
+.skel-card .skel-meta { height: 13px; width: 40%; margin-bottom: 14px; }
+.skel-card .skel-stats { display: flex; gap: 16px; }
+.skel-card .skel-stats .skel { height: 12px; width: 60px; }
 
 /* User menu */
 .user-menu { display: flex; align-items: center; gap: 10px; }
@@ -219,7 +232,17 @@ input.invalid { border-color: var(--danger); }
 </style>
 </head>
 <body>
-<div id="app"><div class="auth-loading">Loading...</div></div>
+<div id="app">
+  <div class="skel-nav"></div>
+  <div class="skel-container">
+    <div class="skel-section-header"><div class="skel"></div></div>
+    <div class="projects-grid">
+      <div class="skel-card"><div class="skel skel-title"></div><div class="skel skel-meta"></div><div class="skel-stats"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div></div>
+      <div class="skel-card"><div class="skel skel-title"></div><div class="skel skel-meta"></div><div class="skel-stats"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div></div>
+      <div class="skel-card"><div class="skel skel-title"></div><div class="skel skel-meta"></div><div class="skel-stats"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div></div>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -234,13 +257,12 @@ window.addEventListener('load', async () => {
     window.location.href = '/login.html';
     return;
   }
-  // Sync user profile from Clerk to DB, then fetch
+  // Sync user profile from Clerk to DB and get user data in one call
   const clerkUser = window.Clerk.user;
-  await api('/me', { method: 'PUT', body: {
+  currentUser = await api('/me', { method: 'PUT', body: {
     email: clerkUser.primaryEmailAddress?.emailAddress || '',
     name: clerkUser.fullName || '',
   }});
-  currentUser = await api('/me');
   render();
 });
 

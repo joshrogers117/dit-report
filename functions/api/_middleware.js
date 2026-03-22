@@ -80,5 +80,11 @@ export async function onRequest(context) {
     }
   }
 
-  return next();
+  const response = await next();
+  if (request.method === 'GET' && response.status === 200) {
+    const cached = new Response(response.body, response);
+    cached.headers.set('Cache-Control', 'private, max-age=5, stale-while-revalidate=10');
+    return cached;
+  }
+  return response;
 }

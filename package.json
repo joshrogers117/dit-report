@@ -9,9 +9,7 @@
     "dev": "npx wrangler pages dev public",
     "deploy": "npx wrangler pages deploy public",
     "db:init": "npx wrangler d1 execute dit-report --local --file=schema.sql",
-    "db:seed": "npx wrangler d1 execute dit-report --local --file=seed.sql",
     "db:init:remote": "npx wrangler d1 execute dit-report --remote --file=schema.sql",
-    "db:seed:remote": "npx wrangler d1 execute dit-report --remote --file=seed.sql",
     "db:migrate": "npx wrangler d1 execute dit-report --local --file=migrations/0001_add_multitenancy.sql",
     "db:migrate:remote": "npx wrangler d1 execute dit-report --remote --file=migrations/0001_add_multitenancy.sql"
   },

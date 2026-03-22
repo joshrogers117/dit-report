@@ -6,7 +6,7 @@ import { seedDemoProject } from '../../lib/demo-project.js';
 const knownUsers = new Set();
 
 // Paths that don't require authentication
-const PUBLIC_PATHS = ['/api/health', '/api/status'];
+const PUBLIC_PATHS = ['/api/health', '/api/status', '/api/webhooks/clerk'];
 
 export async function onRequest(context) {
   const { request, env, next } = context;

@@ -5,3 +5,6 @@ dit-report.db-shm
 dit-report.db-wal
 *.pdf
 .DS_Store
+.agents/
+.claude/skills/
+skills-lock.json

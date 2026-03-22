@@ -3,6 +3,8 @@ import puppeteer from '@cloudflare/puppeteer';
 import { computeDayTotals, computeProjectTotals, computeCumulativeTotals } from '../../lib/calculations.js';
 import { renderStandaloneHTML, renderPrintHTML } from '../../lib/report-renderer.js';
 import { getFullProject } from '../../lib/db-helpers.js';
+import { verifyWebhook } from '@clerk/backend/webhooks';
+import { seedDemoProject } from '../../lib/demo-project.js';
 
 // ===== Ownership verification helpers =====
 
@@ -553,9 +555,24 @@ router.delete('/admin/users/:id', async (request, env) => {
   if (!request.isAdmin) {
     return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
+  const userId = request.params.id;
+  // Delete from Clerk
+  if (env.CLERK_SECRET_KEY) {
+    try {
+      const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${env.CLERK_SECRET_KEY}` },
+      });
+      if (!res.ok && res.status !== 404) {
+        console.error('Clerk user delete failed:', res.status, await res.text());
+      }
+    } catch (err) {
+      console.error('Clerk user delete error:', err.message);
+    }
+  }
   // Delete all projects (cascading deletes handle days/benchmarks/cameras/rolls)
-  await env.DB.prepare('DELETE FROM projects WHERE user_id = ?').bind(request.params.id).run();
-  await env.DB.prepare('DELETE FROM users WHERE id = ?').bind(request.params.id).run();
+  await env.DB.prepare('DELETE FROM projects WHERE user_id = ?').bind(userId).run();
+  await env.DB.prepare('DELETE FROM users WHERE id = ?').bind(userId).run();
   return Response.json({ ok: true });
 });
 
@@ -576,6 +593,58 @@ router.put('/me', async (request, env) => {
     "UPDATE users SET email = ?, name = ?, updated_at = datetime('now') WHERE id = ?"
   ).bind(email || '', name || '', request.userId).run();
   return Response.json({ ok: true });
+});
+
+// ===== CLERK WEBHOOKS =====
+
+router.post('/webhooks/clerk', async (request, env) => {
+  let evt;
+  try {
+    evt = await verifyWebhook(request, {
+      signingSecret: env.CLERK_WEBHOOK_SIGNING_SECRET,
+    });
+  } catch (err) {
+    console.error('Webhook verification failed:', err.message);
+    return new Response(JSON.stringify({ error: 'Webhook verification failed' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  if (evt.type === 'user.created') {
+    const { id, first_name, last_name, email_addresses, primary_email_address_id } = evt.data;
+    const primaryEmail = email_addresses?.find(e => e.id === primary_email_address_id)?.email_address
+      || email_addresses?.[0]?.email_address || '';
+    const name = [first_name, last_name].filter(Boolean).join(' ');
+    try {
+      await env.DB.prepare(
+        'INSERT OR IGNORE INTO users (id, email, name) VALUES (?, ?, ?)'
+      ).bind(id, primaryEmail, name).run();
+      try { await seedDemoProject(env.DB, id); } catch (e) { console.error('Demo seed error:', e.message); }
+    } catch (err) {
+      console.error('user.created handler error:', err.message);
+    }
+  }
+
+  else if (evt.type === 'user.updated') {
+    const { id, first_name, last_name, email_addresses, primary_email_address_id } = evt.data;
+    const primaryEmail = email_addresses?.find(e => e.id === primary_email_address_id)?.email_address
+      || email_addresses?.[0]?.email_address || '';
+    const name = [first_name, last_name].filter(Boolean).join(' ');
+    await env.DB.prepare(
+      "UPDATE users SET email = ?, name = ?, updated_at = datetime('now') WHERE id = ?"
+    ).bind(primaryEmail, name, id).run();
+  }
+
+  else if (evt.type === 'user.deleted') {
+    const userId = evt.data.id;
+    if (userId) {
+      await env.DB.prepare('DELETE FROM projects WHERE user_id = ?').bind(userId).run();
+      await env.DB.prepare('DELETE FROM users WHERE id = ?').bind(userId).run();
+    }
+  }
+
+  return Response.json({ received: true });
 });
 
 // Pages Function entry point

@@ -555,9 +555,24 @@ router.delete('/admin/users/:id', async (request, env) => {
   if (!request.isAdmin) {
     return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
+  const userId = request.params.id;
+  // Delete from Clerk
+  if (env.CLERK_SECRET_KEY) {
+    try {
+      const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${env.CLERK_SECRET_KEY}` },
+      });
+      if (!res.ok && res.status !== 404) {
+        console.error('Clerk user delete failed:', res.status, await res.text());
+      }
+    } catch (err) {
+      console.error('Clerk user delete error:', err.message);
+    }
+  }
   // Delete all projects (cascading deletes handle days/benchmarks/cameras/rolls)
-  await env.DB.prepare('DELETE FROM projects WHERE user_id = ?').bind(request.params.id).run();
-  await env.DB.prepare('DELETE FROM users WHERE id = ?').bind(request.params.id).run();
+  await env.DB.prepare('DELETE FROM projects WHERE user_id = ?').bind(userId).run();
+  await env.DB.prepare('DELETE FROM users WHERE id = ?').bind(userId).run();
   return Response.json({ ok: true });
 });
 

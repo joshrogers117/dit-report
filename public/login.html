@@ -46,12 +46,19 @@ footer {
   border-top: 1px solid var(--border);
 }
 </style>
-<script
-  async
-  crossorigin="anonymous"
-  data-clerk-publishable-key="pk_test_cHJvbXB0LWNvbGxpZS01OC5jbGVyay5hY2NvdW50cy5kZXYk"
-  src="https://prompt-collie-58.clerk.accounts.dev/npm/@clerk/clerk-js@5/dist/clerk.browser.js"
-></script>
+<script>
+  const isProd = location.hostname === 'dit.traderjosh.com';
+  const s = document.createElement('script');
+  s.async = true;
+  s.crossOrigin = 'anonymous';
+  s.dataset.clerkPublishableKey = isProd
+    ? 'pk_live_Y2xlcmsuZGl0LnRyYWRlcmpvc2guY29tJA'
+    : 'pk_test_cHJvbXB0LWNvbGxpZS01OC5jbGVyay5hY2NvdW50cy5kZXYk';
+  s.src = isProd
+    ? 'https://clerk.dit.traderjosh.com/npm/@clerk/clerk-js@5/dist/clerk.browser.js'
+    : 'https://prompt-collie-58.clerk.accounts.dev/npm/@clerk/clerk-js@5/dist/clerk.browser.js';
+  document.head.appendChild(s);
+</script>
 </head>
 <body>
 <div class="login-brand">

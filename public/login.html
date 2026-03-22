@@ -7,19 +7,44 @@
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <style>
 :root {
-  --bg: #0e1117; --surface: #161b22; --border: #30363d;
-  --text: #e6edf3; --text-dim: #8b949e; --accent: #e8762b;
+  --bg: #0e1117; --surface: #161b22; --surface2: #1c2333; --border: #30363d;
+  --text: #e6edf3; --text-dim: #8b949e; --accent: #e8762b; --radius: 10px;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
-  background: var(--bg); color: var(--text); min-height: 100vh;
+  color: var(--text); min-height: 100vh;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: var(--bg);
+  background-image:
+    radial-gradient(ellipse at 50% 30%, #1a1f2e 0%, var(--bg) 70%),
+    radial-gradient(circle, rgba(255,255,255,.03) 1px, transparent 1px);
+  background-size: 100% 100%, 24px 24px;
 }
-.logo { font-size: 20px; font-weight: 700; margin-bottom: 32px; }
-.logo span { color: var(--accent); }
+.login-brand {
+  text-align: center; margin-bottom: 32px;
+}
+.login-brand svg {
+  width: 80px; height: 80px; margin-bottom: 16px;
+  filter: drop-shadow(0 0 24px rgba(232, 118, 43, 0.15));
+}
+.login-brand h1 {
+  font-size: 24px; font-weight: 700; margin-bottom: 8px;
+}
+.login-brand h1 span { color: var(--accent); }
+.tagline {
+  color: var(--text-dim); font-size: 14px; max-width: 320px; line-height: 1.5;
+}
 #sign-in { min-height: 300px; }
-.loading { color: var(--text-dim); font-size: 14px; }
+.loading {
+  color: var(--text-dim); font-size: 14px; text-align: center; padding-top: 40px;
+}
+footer {
+  position: fixed; bottom: 0; width: 100%;
+  padding: 16px; text-align: center;
+  color: var(--text-dim); font-size: 12px;
+  border-top: 1px solid var(--border);
+}
 </style>
 <script
   async
@@ -29,8 +54,19 @@ body {
 ></script>
 </head>
 <body>
-<div class="logo">DIT Report <span>Manager</span></div>
+<div class="login-brand">
+  <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" width="80" height="80">
+    <rect width="512" height="512" rx="64" fill="#0a0a0a"/>
+    <text x="256" y="280" text-anchor="middle" font-family="SF Mono, Menlo, Consolas, monospace" font-weight="800" font-size="200" fill="#ffffff">D</text>
+    <rect x="80" y="340" width="352" height="48" rx="8" fill="#1a1a1a" stroke="#333" stroke-width="3"/>
+    <text x="256" y="376" text-anchor="middle" font-family="SF Mono, Menlo, Consolas, monospace" font-weight="500" font-size="32" fill="#f97316">01:26:15</text>
+  </svg>
+  <h1>DIT Report <span>Manager</span></h1>
+  <p class="tagline">Professional camera offload tracking for film &amp; television.</p>
+</div>
 <div id="sign-in"><div class="loading">Loading...</div></div>
+
+<footer>&copy; 2026 DIT Report Manager</footer>
 
 <script>
 window.addEventListener('load', async () => {
@@ -49,6 +85,25 @@ window.addEventListener('load', async () => {
         colorInputBackground: '#1c2333',
         colorInputText: '#e6edf3',
         colorNeutral: '#e6edf3',
+        borderRadius: '10px',
+        fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif",
+      },
+      elements: {
+        card: {
+          backgroundColor: '#161b22',
+          border: '1px solid #30363d',
+          boxShadow: '0 2px 12px rgba(0,0,0,.4)',
+        },
+        formButtonPrimary: {
+          backgroundColor: '#e8762b',
+          '&:hover': { backgroundColor: '#d06820' },
+        },
+        footerActionLink: {
+          color: '#e8762b',
+        },
+        dividerLine: {
+          borderColor: '#30363d',
+        },
       },
     },
     afterSignInUrl: '/app.html',

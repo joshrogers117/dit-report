@@ -8,3 +8,4 @@ dit-report.db-wal
 .agents/
 .claude/skills/
 skills-lock.json
+skills/

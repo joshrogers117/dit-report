@@ -2,10 +2,10 @@
 
 ## Environments
 
-- **Production:** `dit.ridgestudios.com` (main branch; migrating from `dit.traderjosh.com`, which remains mapped during the transition)
+- **Production:** `dit.ridgestudios.com` (main branch)
 - **Dev:** `dit.dev.traderjosh.com` (dev branch)
 
-The Clerk production instance is domain-bound: `app.html`/`login.html` hold a per-hostname map of publishable keys + frontend-API hosts (`CLERK_PROD`). Only the hostname whose domain is configured as the Clerk production domain will authenticate; the other entry exists so the cutover can happen without a code deploy. After the old domain is retired, remove its map entry and preconnect.
+The Clerk production instance is domain-bound (`clerk.dit.ridgestudios.com` frontend API): `app.html`/`login.html` hold a per-hostname map (`CLERK_PROD`) of publishable keys + frontend-API hosts; unmatched hostnames fall back to the dev Clerk instance. A domain move requires: Pages custom domain, Clerk production domain change + its DNS records, and updating redirect URIs in the Google OAuth client and Apple Services ID (`https://clerk.<domain>/v1/oauth_callback`). The former `dit.traderjosh.com` domain was retired 2026-08-11 with no redirect.
 
 ## Branch & Database Isolation
 

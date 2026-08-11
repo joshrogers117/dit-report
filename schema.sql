@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS projects (
   dit_email TEXT DEFAULT '',
   dit_phone TEXT DEFAULT '',
   archived INTEGER DEFAULT 0,
+  checksum_type TEXT DEFAULT '',
+  share_token TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now'))
 );
@@ -72,11 +74,10 @@ CREATE TABLE IF NOT EXISTS rolls (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   day_id INTEGER NOT NULL REFERENCES shoot_days(id) ON DELETE CASCADE,
   roll_name TEXT NOT NULL DEFAULT '',
-  is_break INTEGER DEFAULT 0,
   card_serial TEXT DEFAULT '',
   gb REAL DEFAULT 0,
   duration_tc TEXT DEFAULT '00:00:00:00',
-  frames INTEGER DEFAULT 0,
+  camera_id INTEGER,
   master INTEGER DEFAULT 0,
   backup INTEGER DEFAULT 0,
   notes TEXT DEFAULT '',

@@ -253,7 +253,7 @@ html.dark .admin-camera-card .brand-logo { filter: none; opacity: .14; }
 /* Modal */
 .modal-overlay { position: fixed; inset: 0; background: color-mix(in oklab, var(--basalt) 40%, transparent); z-index: 200; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .15s var(--ease); }
 .modal-overlay.show { opacity: 1; }
-.modal { background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--r-lg); padding: 24px; min-width: 360px; max-width: 480px; width: 90vw; box-shadow: 0 24px 64px color-mix(in oklab, var(--basalt) 24%, transparent); transform: scale(.97); transition: transform .15s var(--ease); }
+.modal { background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--r-lg); padding: 24px; min-width: 360px; max-width: 480px; width: 90vw; max-height: 88vh; overflow-y: auto; box-shadow: 0 24px 64px color-mix(in oklab, var(--basalt) 24%, transparent); transform: scale(.97); transition: transform .15s var(--ease); }
 .modal-overlay.show .modal { transform: scale(1); }
 .modal h3 { font-size: 18px; font-weight: 500; letter-spacing: -0.015em; margin-bottom: 16px; color: var(--text); text-transform: none; }
 .modal p { font-size: 14px; color: var(--text-dim); margin-bottom: 20px; line-height: 1.55; }
@@ -1212,9 +1212,9 @@ const CSV_FIELDS = [
 ];
 const CSV_HEADER_KEYWORDS = {
   roll_name: ['name', 'clip', 'reel', 'roll'],
-  card_serial: ['serial', 'card', 'media', 'volume'],
+  card_serial: ['serial', 'card', 'volume'],
   gb: ['size', 'gb', 'gigabyte'],
-  duration_tc: ['duration', 'tc', 'length'],
+  duration_tc: ['duration', 'timecode', 'tc'],
   notes: ['note', 'comment'],
 };
 
@@ -1243,6 +1243,69 @@ function parseCSV(text) {
   }
   if (field.length || row.length) { row.push(field); rows.push(row); }
   return rows.filter(r => r.some(c => c.trim() !== ''));
+}
+
+// Per-clip offload reports (ShotPut Studio and similar): one row per file per
+// copy destination. Detect by their distinctive header set and summarize to one
+// roll per card instead of asking the user to map 25+ columns.
+function isClipReport(headers) {
+  const h = headers.map(c => c.trim().toLowerCase());
+  return h.includes('group') && h.includes('path') && h.includes('status') &&
+    (h.includes('xxhash64') || h.includes('video duration') || h.includes('total frames'));
+}
+
+function parseClockToSeconds(v) {
+  const p = String(v || '').trim().split(':').map(Number);
+  if (!p.length || p.some(isNaN)) return 0;
+  if (p.length === 4) p.pop(); // HH:MM:SS:FF — drop frames
+  while (p.length < 3) p.unshift(0);
+  return p[0] * 3600 + p[1] * 60 + p[2];
+}
+
+function secondsToTC(secs) {
+  const pad = n => String(n).padStart(2, '0');
+  return `${pad(Math.floor(secs / 3600))}:${pad(Math.floor(secs / 60) % 60)}:${pad(secs % 60)}:00`;
+}
+
+function aggregateClipReport(headers, dataRows) {
+  const idx = {};
+  headers.forEach((h, i) => { idx[h.trim().toLowerCase()] = i; });
+  const gi = idx['group'], ni = idx['name'], pi = idx['path'], si = idx['size'], sti = idx['status'], vdi = idx['video duration'];
+  // Collapse the copies: each Group id is one file/folder, listed once per destination
+  const groups = new Map();
+  for (const r of dataRows) {
+    const g = r[gi];
+    if (g === undefined || g === '') continue;
+    let e = groups.get(g);
+    if (!e) { e = { name: r[ni] || '', srcPath: '', gb: 0, dur: '', verified: 0 }; groups.set(g, e); }
+    const status = (r[sti] || '').trim().toLowerCase();
+    const sz = parseSizeToGb(r[si]);
+    if (status === 'verified') e.verified++;
+    if (status === 'offloaded') { e.srcPath = r[pi] || ''; if (sz) e.gb = sz; }
+    else if (!e.gb && sz) e.gb = sz;
+    const vd = vdi !== undefined ? (r[vdi] || '').trim() : '';
+    if (vd) e.dur = vd;
+  }
+  // Media clips are the entities with a video duration; group them by card volume
+  const rootName = groups.get('0')?.name || '';
+  const cards = new Map();
+  for (const e of groups.values()) {
+    if (!e.dur) continue;
+    const m = e.srcPath.match(/^\/Volumes\/([^\/]+)/);
+    const card = m ? m[1] : (rootName || 'CARD');
+    let c = cards.get(card);
+    if (!c) { c = { roll_name: card, gb: 0, secs: 0, clips: 0, minVerified: Infinity }; cards.set(card, c); }
+    c.gb += e.gb;
+    c.secs += parseClockToSeconds(e.dur);
+    c.clips++;
+    c.minVerified = Math.min(c.minVerified, e.verified);
+  }
+  return [...cards.values()].map(c => ({
+    roll_name: c.roll_name, card_serial: '', gb: Math.round(c.gb * 100) / 100,
+    duration_tc: secondsToTC(c.secs),
+    master: c.minVerified >= 1 ? 1 : 0, backup: c.minVerified >= 2 ? 1 : 0,
+    notes: '', clips: c.clips,
+  }));
 }
 
 // MB/GB/TB suffixes convert directly; unitless large numbers are treated as raw bytes
@@ -1280,6 +1343,7 @@ function openCsvImport(dayId) {
   const prevWrap = overlay.querySelector('#csvPreviewWrap');
   const importBtn = overlay.querySelector('#csvImportBtn');
   let parsed = null;
+  let manualMode = false; // user opted out of clip-report summarization
 
   drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('dragover'); });
   drop.addEventListener('dragleave', () => drop.classList.remove('dragover'));
@@ -1302,12 +1366,28 @@ function openCsvImport(dayId) {
     const rows = parseCSV(text);
     if (!rows.length) { mapWrap.innerHTML = ''; prevWrap.innerHTML = ''; importBtn.disabled = true; parsed = null; return; }
     const first = rows[0];
+
+    // Per-clip offload report → summarize to one roll per card
+    if (!manualMode && isClipReport(first)) {
+      const clipRolls = aggregateClipReport(first, rows.slice(1));
+      if (clipRolls.length) {
+        parsed = { clipMode: true, clipRolls };
+        mapWrap.innerHTML = '';
+        renderClipPreview();
+        importBtn.disabled = false;
+        return;
+      }
+    }
+
     const hasHeader = first.some(c => guessCsvField(c) !== '');
     let headers, dataRows, mapping;
     if (hasHeader) {
       headers = first;
       dataRows = rows.slice(1);
       mapping = headers.map(h => guessCsvField(h));
+      // First column wins each field; repeats fall back to Skip
+      const seen = new Set();
+      mapping = mapping.map(f => { if (!f || seen.has(f)) return ''; seen.add(f); return f; });
     } else {
       headers = first.map((_, i) => `Column ${i + 1}`);
       dataRows = rows;
@@ -1318,6 +1398,24 @@ function openCsvImport(dayId) {
     renderMapping();
     renderPreview();
     importBtn.disabled = false;
+  }
+
+  function renderClipPreview() {
+    prevWrap.innerHTML = `<div class="section-title"><h3>Summary</h3></div>
+      <p style="font-size:13px;color:var(--text-dim);margin-bottom:12px">Per-clip offload report detected. Clips are summarized into one roll per card; master and backup reflect each clip's verified copies.</p>
+      <div style="overflow-x:auto;margin-bottom:8px"><table class="data-table">
+        <thead><tr><th>Roll</th><th>Clips</th><th style="text-align:right">Size</th><th>Duration</th><th style="text-align:center">Master</th><th style="text-align:center">Backup</th></tr></thead>
+        <tbody>${parsed.clipRolls.map(r => `<tr>
+          <td class="mono">${esc(r.roll_name)}</td>
+          <td>${r.clips}</td>
+          <td class="mono" style="text-align:right">${fmtSize(r.gb)}</td>
+          <td class="mono">${esc(r.duration_tc)}</td>
+          <td style="text-align:center">${r.master ? '&#10003;' : '&mdash;'}</td>
+          <td style="text-align:center">${r.backup ? '&#10003;' : '&mdash;'}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+      <button type="button" class="btn btn-sm" id="csvManualBtn" style="margin-bottom:8px">Map columns manually instead</button>`;
+    prevWrap.querySelector('#csvManualBtn').addEventListener('click', () => { manualMode = true; parseAndRender(); });
   }
 
   function renderMapping() {
@@ -1347,6 +1445,18 @@ function openCsvImport(dayId) {
 
   importBtn.addEventListener('click', async () => {
     if (!parsed) return;
+    if (parsed.clipMode) {
+      const rolls = parsed.clipRolls.map(({ clips, ...roll }) => roll);
+      try {
+        const { ids } = await api('/days/' + dayId + '/rolls/bulk', { method: 'POST', body: { rolls } });
+        closeModal(overlay);
+        toast(`Imported ${ids.length} roll${ids.length === 1 ? '' : 's'}`);
+        render();
+      } catch (err) {
+        toast('Import failed');
+      }
+      return;
+    }
     const rolls = parsed.dataRows.map(r => {
       const obj = {};
       parsed.mapping.forEach((f, i) => {

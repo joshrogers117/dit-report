@@ -2,6 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<script>
+(function() {
+  var stored = localStorage.getItem('dit-theme');
+  var dark = stored ? stored === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+  document.documentElement.classList.toggle('dark', dark);
+})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DIT Offload Report</title>
 <meta name="description" content="Track and report camera offloads, benchmarks, and shoot day data for film productions.">
@@ -16,6 +23,9 @@
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="preconnect" href="https://clerk.dit.traderjosh.com" crossorigin>
 <link rel="preconnect" href="https://prompt-collie-58.clerk.accounts.dev" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Space+Grotesk:wght@600&display=swap" rel="stylesheet">
 <script>
   const isProd = location.hostname === 'dit.traderjosh.com';
   const s = document.createElement('script');
@@ -30,79 +40,139 @@
   document.head.appendChild(s);
 </script>
 <style>
+/* ──────────────────────────────────────────────────────────────────────
+   Design tokens — light UI: snow ground, graphite ink, warm neutrals,
+   compass-yellow CTA, basalt chrome.
+   ────────────────────────────────────────────────────────────────────── */
 :root {
-  --bg: #0e1117; --surface: #161b22; --surface2: #1c2333; --border: #30363d;
-  --text: #e6edf3; --text-dim: #8b949e; --accent: #e8762b; --accent2: #3fb950;
-  --accent3: #d29922; --danger: #f85149; --radius: 10px; --shadow: 0 2px 12px rgba(0,0,0,.4);
-}
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; min-height: 100vh; }
-.container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+  /* Palette */
+  --basalt: #121410; --moss: #2B3A26; --madrone: #B85B33; --clay: #B07859;
+  --parchment: #EBE2CC; --granite: #6B6F65; --alpenglow: #D1573F; --ochre: #D9A828;
+  --snow: #FFFFFF; --cloud: #F4F2EC; --mist: #E6E3D9; --fog: #D6D2C6;
+  --graphite: #0A0A0A; --slate: #2A2A2A; --smoke: #6F6E6A;
+  --compass: #FED20B; --ember: #D94B1A; --leaf: #1B7A47;
 
-/* Nav */
-.nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
-.nav h1 { font-size: 16px; font-weight: 700; }
-.nav .breadcrumb { color: var(--text-dim); font-size: 13px; }
-.nav .breadcrumb a { color: var(--accent); text-decoration: none; }
-.nav .breadcrumb a:hover { text-decoration: underline; }
+  /* Role tokens */
+  --bg: var(--snow);
+  --surface: var(--snow);
+  --surface2: var(--cloud);
+  --surface3: var(--mist);
+  --text: var(--graphite);
+  --text2: var(--slate);
+  --text-dim: var(--smoke);
+  --border: color-mix(in oklab, var(--graphite) 14%, transparent);
+  --border-soft: color-mix(in oklab, var(--graphite) 8%, transparent);
+  --border-strong: color-mix(in oklab, var(--graphite) 32%, transparent);
+  --ring: color-mix(in oklab, var(--graphite) 18%, transparent);
+  --link: color-mix(in oklab, var(--alpenglow) 82%, var(--graphite));
+  --danger: var(--ember);
+
+  /* Radii — 4px chips, 6px inputs, 12px cards, 16px large, pills for buttons */
+  --r-chip: 4px; --r-input: 6px; --r-card: 12px; --r-lg: 16px; --r-pill: 9999px;
+
+  /* Motion */
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  /* Tracked-caps labels */
+  --tr-caps: 0.14em;
+}
+html.dark {
+  --bg: var(--basalt);
+  --surface: color-mix(in oklab, var(--parchment) 5%, var(--basalt));
+  --surface2: color-mix(in oklab, var(--parchment) 10%, var(--basalt));
+  --surface3: color-mix(in oklab, var(--parchment) 14%, var(--basalt));
+  --text: var(--parchment);
+  --text2: var(--text);
+  --text-dim: color-mix(in oklab, var(--parchment) 58%, transparent);
+  --border: color-mix(in oklab, var(--parchment) 14%, transparent);
+  --border-soft: color-mix(in oklab, var(--parchment) 8%, transparent);
+  --border-strong: color-mix(in oklab, var(--parchment) 32%, transparent);
+  --ring: color-mix(in oklab, var(--parchment) 24%, transparent);
+  --link: var(--alpenglow);
+}
+/* On the basalt ground the nav needs a rule to read as chrome */
+html.dark .nav, html.dark .skel-nav { border-bottom: 1px solid color-mix(in oklab, var(--parchment) 10%, transparent); }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  background: var(--bg); color: var(--text);
+  font-size: 15px; line-height: 1.55; letter-spacing: -0.005em; min-height: 100vh;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+}
+.container { max-width: 1240px; margin: 0 auto; padding: 0 24px 48px; }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: color-mix(in oklab, var(--text) 22%, transparent); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: color-mix(in oklab, var(--text) 34%, transparent); }
+
+/* Wordmark — Space Grotesk */
+.wordmark { font-family: 'Space Grotesk', 'Geist', system-ui, sans-serif; font-weight: 600; letter-spacing: -0.045em; }
+
+/* Nav — basalt identity anchor framing the white content surface */
+.nav { background: var(--basalt); color: var(--parchment); padding: 10px 20px; display: flex; align-items: center; gap: 14px; margin-bottom: 24px; flex-wrap: wrap; }
+.nav .wordmark { font-size: 21px; line-height: 1; color: var(--parchment); text-decoration: none; flex-shrink: 0; padding-bottom: 2px; }
+.nav .breadcrumb { color: color-mix(in oklab, var(--parchment) 60%, transparent); font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav .breadcrumb a { color: color-mix(in oklab, var(--parchment) 78%, transparent); text-decoration: none; }
+.nav .breadcrumb a:hover { color: var(--parchment); }
 .nav .spacer { flex: 1; }
-.back-btn { background: none; border: 1px solid var(--border); color: var(--text-dim); width: 32px; height: 32px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all .15s; flex-shrink: 0; }
-.back-btn:hover { border-color: var(--accent); color: var(--accent); }
+.back-btn { background: none; border: 1px solid color-mix(in oklab, var(--parchment) 24%, transparent); color: color-mix(in oklab, var(--parchment) 72%, transparent); width: 32px; height: 32px; border-radius: var(--r-pill); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: border-color .15s var(--ease), color .15s var(--ease); flex-shrink: 0; }
+.back-btn:hover { border-color: color-mix(in oklab, var(--alpenglow) 70%, transparent); color: var(--alpenglow); }
 .back-btn svg { width: 16px; height: 16px; }
 
-/* Cards */
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; box-shadow: var(--shadow); }
-.card h2 { font-size: 18px; font-weight: 700; margin-bottom: 12px; }
-.card h3 { font-size: 14px; font-weight: 600; margin-bottom: 8px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+/* Cards — flat white surfaces with hairline rules */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-card); padding: 24px; margin-bottom: 16px; }
+.card h2 { font-size: 18px; font-weight: 500; letter-spacing: -0.015em; margin-bottom: 14px; }
+.card h3 { font-size: 11px; font-weight: 500; margin-bottom: 8px; color: var(--text-dim); text-transform: uppercase; letter-spacing: var(--tr-caps); }
 
 /* Project cards */
 .projects-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
-.project-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; transition: border-color .15s, transform .15s; box-shadow: var(--shadow); position: relative; cursor: pointer; }
-.project-card:hover { border-color: var(--accent); transform: translateY(-2px); }
-.project-card h3 { font-size: 18px; margin-bottom: 4px; color: var(--text); text-transform: none; letter-spacing: 0; }
+.project-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-card); padding: 20px; transition: border-color .15s var(--ease), transform .15s var(--ease); position: relative; cursor: pointer; }
+.project-card:hover { border-color: var(--alpenglow); transform: translateY(-1px); }
+.project-card h3 { font-size: 18px; font-weight: 500; letter-spacing: -0.015em; margin-bottom: 2px; color: var(--text); text-transform: none; }
 .project-card .meta { color: var(--text-dim); font-size: 13px; margin-bottom: 12px; }
-.project-card .stats { display: flex; gap: 16px; font-size: 12px; color: var(--text-dim); }
-.project-card .stats strong { color: var(--text); }
+.project-card .stats { display: flex; gap: 16px; font-size: 13px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.project-card .stats strong { color: var(--text); font-weight: 600; }
 .project-card .card-actions { display: flex; gap: 8px; margin-top: 14px; align-items: center; }
-.edit-link { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); font-size: 13px; font-weight: 500; cursor: pointer; text-decoration: none; }
-.edit-link:hover { text-decoration: underline; }
+.edit-link { display: inline-flex; align-items: center; gap: 6px; color: var(--link); font-size: 13px; font-weight: 500; cursor: pointer; text-decoration: none; white-space: nowrap; }
+.edit-link:hover { text-decoration: underline; text-underline-offset: 3px; }
 .edit-link svg { width: 14px; height: 14px; }
-.project-card .view-link { display: inline-flex; align-items: center; gap: 6px; color: var(--text-dim); font-size: 13px; font-weight: 500; cursor: pointer; text-decoration: none; }
+.project-card .view-link { display: inline-flex; align-items: center; gap: 6px; color: var(--text-dim); font-size: 13px; font-weight: 500; cursor: pointer; text-decoration: none; white-space: nowrap; }
 .project-card .view-link:hover { color: var(--text); }
 
 /* Ellipsis menu */
 .ellipsis-wrap { position: relative; margin-left: auto; }
-.ellipsis-btn { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 20px; padding: 4px 8px; border-radius: 4px; line-height: 1; letter-spacing: 2px; }
-.ellipsis-btn:hover { background: var(--surface2); color: var(--text); }
-.ellipsis-menu { position: absolute; right: 0; top: 100%; margin-top: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); min-width: 160px; z-index: 50; display: none; overflow: hidden; }
+.ellipsis-btn { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 18px; padding: 4px 8px; border-radius: var(--r-pill); line-height: 1; letter-spacing: 2px; }
+.ellipsis-btn:hover { background: var(--surface3); color: var(--text); }
+.ellipsis-menu { position: absolute; right: 0; top: 100%; margin-top: 6px; background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--r-card); box-shadow: 0 12px 32px color-mix(in oklab, var(--basalt) 14%, transparent); min-width: 180px; z-index: 50; display: none; overflow: hidden; padding: 4px; }
 .ellipsis-menu.open { display: block; }
-.ellipsis-menu button { display: block; width: 100%; text-align: left; background: none; border: none; color: var(--text); padding: 10px 16px; font-size: 13px; cursor: pointer; font-family: inherit; }
+.ellipsis-menu button { display: block; width: 100%; text-align: left; background: none; border: none; color: var(--text); padding: 8px 12px; font-size: 13px; cursor: pointer; font-family: inherit; border-radius: 8px; }
 .ellipsis-menu button:hover { background: var(--surface2); }
-.ellipsis-menu button.danger { color: var(--danger); }
-.ellipsis-menu button.danger:hover { background: rgba(248,81,73,.08); }
-.ellipsis-menu .menu-divider { height: 1px; background: var(--border); margin: 4px 0; }
+.ellipsis-menu button.danger { color: var(--ember); }
+.ellipsis-menu button.danger:hover { background: color-mix(in oklab, var(--ember) 8%, transparent); }
+.ellipsis-menu .menu-divider { height: 1px; background: var(--border-soft); margin: 4px 8px; }
 
 /* Section label */
-.dashboard-section { margin-bottom: 32px; }
+.dashboard-section { margin-bottom: 40px; }
 .dashboard-section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
-.dashboard-section-header h2 { font-size: 16px; font-weight: 700; white-space: nowrap; }
-.dashboard-section-header .section-count { background: var(--surface2); color: var(--text-dim); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; }
+.dashboard-section-header h2 { font-size: 20px; font-weight: 500; letter-spacing: -0.022em; white-space: nowrap; }
+.dashboard-section-header .section-count { background: var(--surface3); color: var(--text2); font-size: 11px; font-weight: 500; padding: 2px 9px; border-radius: var(--r-pill); font-variant-numeric: tabular-nums; }
 .dashboard-section-header::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 .dashboard-section-header p { color: var(--text-dim); font-size: 13px; }
 
 /* Completed projects */
 .project-card.archived { opacity: .7; }
 .project-card.archived:hover { opacity: 1; }
-.status-badge { display: inline-block; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; padding: 2px 8px; border-radius: 4px; }
-.status-badge.active { background: rgba(63,185,80,.12); color: var(--accent2); }
-.status-badge.completed { background: rgba(88,166,255,.1); color: var(--accent); }
+.status-badge { display: inline-block; font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: .1em; padding: 3px 8px; border-radius: var(--r-chip); }
+.status-badge.active { background: color-mix(in oklab, var(--leaf) 10%, transparent); color: var(--leaf); }
+.status-badge.completed { background: var(--surface3); color: var(--text2); }
 
-/* Day cards */
+/* Day cards — soft cloud "editor" panels */
 .days-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
-.day-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 16px; cursor: pointer; transition: border-color .15s, transform .15s; }
-.day-card:hover { border-color: var(--accent); transform: translateY(-2px); }
-.day-card h4 { font-size: 16px; margin-bottom: 4px; }
-.day-card .day-meta { color: var(--text-dim); font-size: 13px; }
+.day-card { background: var(--surface2); border: 1px solid var(--border-soft); border-radius: var(--r-card); padding: 16px; cursor: pointer; transition: border-color .15s var(--ease), transform .15s var(--ease); }
+.day-card:hover { border-color: var(--alpenglow); transform: translateY(-1px); }
+.day-card h4 { font-size: 16px; font-weight: 500; letter-spacing: -0.015em; margin-bottom: 2px; }
+.day-card .day-meta { color: var(--text-dim); font-size: 13px; font-variant-numeric: tabular-nums; }
 
 /* Forms */
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -110,53 +180,62 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI'
 .form-grid.cols-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
 .form-group { display: flex; flex-direction: column; gap: 4px; }
 .form-group.full { grid-column: 1 / -1; }
-.form-group label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); font-weight: 600; }
+.form-group label { font-size: 10.5px; text-transform: uppercase; letter-spacing: .1em; color: var(--text-dim); font-weight: 500; }
 input, select, textarea {
-  background: var(--surface2); border: 1px solid var(--border); color: var(--text);
-  padding: 8px 12px; border-radius: 6px; font-size: 13px; font-family: inherit;
-  transition: border-color .15s;
+  background: var(--surface); border: 1px solid var(--border); color: var(--text);
+  padding: 7px 10px; border-radius: var(--r-input); font-size: 14px; font-family: inherit;
+  transition: border-color .15s var(--ease), box-shadow .15s var(--ease);
 }
-input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
-input.mono, .mono-input { font-family: 'SF Mono','Menlo', monospace; font-size: 12px; }
-input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent2); cursor: pointer; padding: 0; }
-input.invalid { border-color: var(--danger); }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--text); box-shadow: 0 0 0 3px var(--ring); }
+input::placeholder { color: color-mix(in oklab, var(--text-dim) 65%, transparent); }
+input.mono, .mono-input, .mono { font-weight: 500; font-variant-numeric: tabular-nums; font-size: 13px; }
+input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--leaf); cursor: pointer; padding: 0; }
+input.invalid { border-color: var(--ember); box-shadow: 0 0 0 3px color-mix(in oklab, var(--ember) 15%, transparent); }
 
-/* Buttons */
-.btn { background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all .15s; font-family: inherit; display: inline-flex; align-items: center; gap: 6px; }
-.btn:hover { border-color: var(--accent); color: var(--accent); }
-.btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-.btn-primary:hover { opacity: .9; color: #fff; }
-.btn-danger { color: var(--danger); }
-.btn-danger:hover { background: rgba(248,81,73,.1); border-color: var(--danger); }
-.btn-sm { padding: 4px 10px; font-size: 12px; }
+/* Buttons — Rivian-leaning pills; compass carries the one CTA per surface */
+.btn { background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 7px 16px; border-radius: var(--r-pill); cursor: pointer; font-size: 13px; font-weight: 500; transition: background .15s var(--ease), border-color .15s var(--ease), color .15s var(--ease), transform .15s var(--ease); font-family: inherit; display: inline-flex; align-items: center; gap: 6px; }
+.btn:hover { background: var(--surface2); }
+.btn:active { transform: translateY(1px); }
+.btn:focus-visible, .back-btn:focus-visible, .ellipsis-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ring); }
+.btn-primary { background: var(--compass); color: var(--graphite); border-color: transparent; }
+.btn-primary:hover { background: color-mix(in oklab, var(--compass) 88%, var(--graphite)); color: var(--graphite); }
+.btn-danger { color: var(--ember); background: color-mix(in oklab, var(--ember) 8%, transparent); border-color: transparent; }
+.btn-danger:hover { background: color-mix(in oklab, var(--ember) 16%, transparent); color: var(--ember); }
+.btn-sm { padding: 4px 12px; font-size: 12px; }
+.btn-add { background: color-mix(in oklab, var(--moss) 9%, transparent); color: color-mix(in oklab, var(--moss) 55%, var(--text)); border-color: transparent; }
+.btn-add:hover { background: color-mix(in oklab, var(--moss) 16%, transparent); }
 .btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+.nav .btn:not(.btn-primary) { background: transparent; border-color: color-mix(in oklab, var(--parchment) 26%, transparent); color: var(--parchment); }
+.nav .btn:not(.btn-primary):hover { background: color-mix(in oklab, var(--parchment) 12%, transparent); }
 
 /* Tables */
 .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.data-table th { text-align: left; padding: 8px 12px; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); font-weight: 600; border-bottom: 1px solid var(--border); background: var(--surface2); }
-.data-table td { padding: 6px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.data-table th { text-align: left; padding: 8px 12px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .1em; color: var(--text-dim); font-weight: 500; border-bottom: 1px solid var(--border); background: var(--surface2); }
+.data-table td { padding: 6px 12px; border-bottom: 1px solid var(--border-soft); vertical-align: middle; }
 .data-table tr:last-child td { border-bottom: none; }
 .data-table input { width: 100%; min-width: 60px; }
-.data-table input[type="checkbox"] { width: 18px; min-width: 18px; }
+.data-table input[type="checkbox"] { width: 17px; min-width: 17px; }
 .data-table .row-actions { white-space: nowrap; }
 
-/* Section headers */
-.section-title { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; margin-top: 24px; }
-.section-title h3 { margin: 0; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-dim); }
+/* Section headers — tracked-caps eyebrows with a hairline rule */
+.section-title { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; margin-top: 28px; }
+.section-title h3 { margin: 0; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: var(--tr-caps); color: var(--text-dim); }
 .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
 /* Camera cards in admin */
 .admin-camera-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
-.admin-camera-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 20px; position: relative; }
-.admin-camera-card .brand-logo { position: absolute; top: 14px; right: 52px; height: 20px; width: auto; opacity: 0.25; pointer-events: none; filter: brightness(0) invert(1); }
+.admin-camera-card { background: var(--surface2); border: 1px solid var(--border-soft); border-radius: var(--r-card); padding: 20px; position: relative; }
+.admin-camera-card .brand-logo { position: absolute; top: 14px; right: 52px; height: 20px; width: auto; opacity: 0.16; pointer-events: none; filter: brightness(0); }
+html.dark .admin-camera-card .brand-logo { filter: none; opacity: .14; }
 .admin-camera-card .brand-blackmagic { height: 52px; top: 0px; }
-.admin-camera-card .source-type-badge { display: inline-block; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; padding: 2px 8px; border-radius: 4px; margin-bottom: 8px; }
-.source-type-badge.type-camera { background: rgba(88,166,255,.12); color: #58a6ff; }
-.source-type-badge.type-audio { background: rgba(232,118,43,.12); color: #e8762b; }
-.source-type-badge.type-photo { background: rgba(163,113,247,.12); color: #a371f7; }
-.source-type-badge.type-misc { background: rgba(210,153,34,.12); color: #d29922; }
-.source-picker { position: fixed; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); min-width: 180px; z-index: 200; overflow: hidden; }
-.source-picker button { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: none; color: var(--text); padding: 10px 16px; font-size: 13px; cursor: pointer; font-family: inherit; }
+.admin-camera-card .source-type-badge { margin-bottom: 8px; }
+.source-type-badge { display: inline-block; font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: .1em; padding: 3px 8px; border-radius: var(--r-chip); }
+.source-type-badge.type-camera { background: color-mix(in oklab, var(--moss) 12%, transparent); color: color-mix(in oklab, var(--moss) 55%, var(--text)); }
+.source-type-badge.type-audio { background: color-mix(in oklab, var(--clay) 18%, transparent); color: color-mix(in oklab, var(--clay) 55%, var(--text)); }
+.source-type-badge.type-photo { background: color-mix(in oklab, var(--granite) 14%, transparent); color: color-mix(in oklab, var(--granite) 70%, var(--text)); }
+.source-type-badge.type-misc { background: color-mix(in oklab, var(--ochre) 18%, transparent); color: color-mix(in oklab, var(--ochre) 45%, var(--text)); }
+.source-picker { position: fixed; background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--r-card); box-shadow: 0 12px 32px color-mix(in oklab, var(--basalt) 14%, transparent); min-width: 180px; z-index: 200; overflow: hidden; padding: 4px; }
+.source-picker button { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: none; color: var(--text); padding: 8px 12px; font-size: 13px; cursor: pointer; font-family: inherit; border-radius: 8px; }
 .source-picker button:hover { background: var(--surface2); }
 .admin-camera-card > .ellipsis-wrap { position: absolute; top: 8px; right: 8px; margin-left: 0; z-index: 10; }
 .admin-camera-card > .ellipsis-wrap .ellipsis-menu { z-index: 100; }
@@ -165,69 +244,102 @@ input.invalid { border-color: var(--danger); }
 .admin-camera-card .cam-form .form-group label { margin-bottom: 4px; }
 .admin-camera-card .cam-form input { width: 100%; }
 
-/* Toast */
-.toast { position: fixed; bottom: 24px; right: 24px; background: var(--accent2); color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 500; opacity: 0; transform: translateY(10px); transition: all .3s; pointer-events: none; z-index: 100; }
+/* Toast — quiet graphite pill */
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--moss); color: var(--parchment); padding: 9px 18px; border-radius: var(--r-pill); font-size: 13px; font-weight: 500; opacity: 0; transform: translateY(10px); transition: opacity .24s var(--ease), transform .24s var(--ease); pointer-events: none; z-index: 100; box-shadow: 0 8px 24px color-mix(in oklab, var(--basalt) 25%, transparent); }
 .toast.show { opacity: 1; transform: translateY(0); }
+.toast.with-action { pointer-events: auto; }
+.toast .toast-undo { background: none; border: none; color: var(--parchment); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; font: inherit; font-weight: 600; padding: 0; margin-left: 10px; }
 
 /* Modal */
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 200; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .15s; }
+.modal-overlay { position: fixed; inset: 0; background: color-mix(in oklab, var(--basalt) 40%, transparent); z-index: 200; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .15s var(--ease); }
 .modal-overlay.show { opacity: 1; }
-.modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; min-width: 360px; max-width: 480px; width: 90vw; box-shadow: 0 8px 32px rgba(0,0,0,.5); transform: scale(.95); transition: transform .15s; }
+.modal { background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--r-lg); padding: 24px; min-width: 360px; max-width: 480px; width: 90vw; box-shadow: 0 24px 64px color-mix(in oklab, var(--basalt) 24%, transparent); transform: scale(.97); transition: transform .15s var(--ease); }
 .modal-overlay.show .modal { transform: scale(1); }
-.modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 16px; color: var(--text); text-transform: none; letter-spacing: 0; }
-.modal p { font-size: 14px; color: var(--text-dim); margin-bottom: 20px; line-height: 1.5; }
+.modal h3 { font-size: 18px; font-weight: 500; letter-spacing: -0.015em; margin-bottom: 16px; color: var(--text); text-transform: none; }
+.modal p { font-size: 14px; color: var(--text-dim); margin-bottom: 20px; line-height: 1.55; }
 .modal input { width: 100%; margin-bottom: 20px; }
 .modal .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
-.modal .modal-actions .btn { min-width: 80px; text-align: center; }
+.modal .modal-actions .btn { min-width: 80px; text-align: center; justify-content: center; }
 
-/* Totals bar */
-.totals-bar { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 20px; display: flex; gap: 32px; font-size: 13px; margin-top: 12px; }
-.totals-bar .t-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); font-weight: 600; }
-.totals-bar .t-value { font-weight: 700; font-family: 'SF Mono', monospace; }
+/* Totals bar — basalt data strip, the payoff moment */
+.totals-bar { background: var(--basalt); color: var(--parchment); border-radius: var(--r-card); padding: 14px 20px; display: flex; gap: 32px; font-size: 13px; margin-top: 12px; flex-wrap: wrap; }
+.totals-bar:empty { display: none; }
+.totals-bar .t-label { font-size: 10px; text-transform: uppercase; letter-spacing: var(--tr-caps); color: color-mix(in oklab, var(--parchment) 55%, transparent); font-weight: 500; margin-bottom: 2px; }
+.totals-bar .t-value { font-weight: 600; font-variant-numeric: tabular-nums; font-size: 15px; color: var(--compass); }
 
 /* Summary row */
-.summary-row td { font-weight: 700; background: var(--surface2); border-top: 2px solid var(--border); }
+.summary-row td { font-weight: 600; background: var(--surface2); border-top: 2px solid var(--border); font-variant-numeric: tabular-nums; }
 
 /* Skeleton loading */
 @keyframes shimmer { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
-.skel { background: linear-gradient(90deg, var(--surface) 25%, var(--surface2) 50%, var(--surface) 75%); background-size: 800px 100%; animation: shimmer 1.5s infinite; border-radius: 6px; }
-.skel-nav { height: 48px; border-bottom: 1px solid var(--border); background: var(--surface); }
-.skel-container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+.skel { background: linear-gradient(90deg, var(--surface2) 25%, var(--surface3) 50%, var(--surface2) 75%); background-size: 800px 100%; animation: shimmer 1.5s infinite; border-radius: 6px; }
+.skel-nav { height: 52px; background: var(--basalt); }
+.skel-container { max-width: 1240px; margin: 24px auto 0; padding: 0 24px; }
 .skel-section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
-.skel-section-header .skel { height: 16px; width: 140px; }
+.skel-section-header .skel { height: 20px; width: 160px; }
 .skel-section-header::after { content: ''; flex: 1; height: 1px; background: var(--border); }
-.skel-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+.skel-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-card); padding: 20px; }
 .skel-card .skel-title { height: 18px; width: 60%; margin-bottom: 8px; }
 .skel-card .skel-meta { height: 13px; width: 40%; margin-bottom: 14px; }
 .skel-card .skel-stats { display: flex; gap: 16px; }
 .skel-card .skel-stats .skel { height: 12px; width: 60px; }
 
-/* User menu */
+/* User menu — sits on the basalt nav */
 .user-menu { display: flex; align-items: center; gap: 10px; }
 .user-menu .user-avatar { width: 28px; height: 28px; border-radius: 50%; }
-.user-menu .user-name { font-size: 13px; color: var(--text); font-weight: 500; }
-.user-menu .sign-out-btn { background: none; border: none; color: var(--text-dim); font-size: 12px; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-family: inherit; }
-.user-menu .sign-out-btn:hover { color: var(--text); background: var(--surface2); }
-.admin-link { color: var(--text-dim); font-size: 13px; text-decoration: none; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border); display: inline-flex; align-items: center; gap: 6px; }
-.admin-link:hover { color: var(--text); border-color: var(--accent); }
+.user-menu .user-name { font-size: 13px; color: var(--parchment); font-weight: 500; }
+.user-menu .sign-out-btn { background: none; border: none; color: color-mix(in oklab, var(--parchment) 60%, transparent); font-size: 12px; cursor: pointer; padding: 4px 10px; border-radius: var(--r-pill); font-family: inherit; }
+.user-menu .sign-out-btn:hover { color: var(--parchment); background: color-mix(in oklab, var(--parchment) 12%, transparent); }
+.sync-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: color-mix(in oklab, var(--parchment) 55%, transparent); }
+.sync-status .sync-dot { width: 6px; height: 6px; border-radius: 50%; background: color-mix(in oklab, var(--parchment) 28%, transparent); flex-shrink: 0; transition: background .2s var(--ease); }
+.sync-status.saving .sync-dot { background: var(--smoke); }
+.sync-status.saved .sync-dot { background: var(--leaf); }
+.sync-status.offline .sync-dot { background: var(--ember); }
+.sync-status .sync-label { transition: opacity .3s var(--ease); white-space: nowrap; }
+.sync-status.fade .sync-label { opacity: 0; }
+.admin-link { color: var(--parchment); font-size: 13px; text-decoration: none; padding: 5px 12px; border-radius: var(--r-pill); border: 1px solid color-mix(in oklab, var(--parchment) 26%, transparent); display: inline-flex; align-items: center; gap: 6px; }
+.admin-link:hover { background: color-mix(in oklab, var(--parchment) 12%, transparent); }
 
-/* Impersonation banner */
-.impersonate-banner { background: var(--accent3); color: #000; padding: 8px 24px; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 12px; }
-.impersonate-banner button { background: rgba(0,0,0,.2); border: none; color: #000; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600; font-family: inherit; }
-.impersonate-banner button:hover { background: rgba(0,0,0,.3); }
+/* Impersonation banner — compass alert state */
+.impersonate-banner { background: var(--compass); color: var(--graphite); padding: 8px 20px; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 12px; }
+.impersonate-banner button { background: color-mix(in oklab, var(--graphite) 12%, transparent); border: none; color: var(--graphite); padding: 4px 12px; border-radius: var(--r-pill); cursor: pointer; font-size: 12px; font-weight: 500; font-family: inherit; }
+.impersonate-banner button:hover { background: color-mix(in oklab, var(--graphite) 20%, transparent); }
 
 /* Admin tables */
 .admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.admin-table th { text-align: left; padding: 10px 12px; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); font-weight: 600; border-bottom: 1px solid var(--border); background: var(--surface2); }
-.admin-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.admin-table th { text-align: left; padding: 10px 12px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .1em; color: var(--text-dim); font-weight: 500; border-bottom: 1px solid var(--border); background: var(--surface2); }
+.admin-table td { padding: 10px 12px; border-bottom: 1px solid var(--border-soft); vertical-align: middle; }
 .admin-table tr:last-child td { border-bottom: none; }
 .admin-table tr:hover td { background: var(--surface2); }
 .admin-table .actions { white-space: nowrap; display: flex; gap: 6px; }
+
+/* Drag reorder */
+.drag-handle { cursor: grab; color: var(--text-dim); touch-action: none; user-select: none; font-size: 13px; line-height: 1; }
+.drag-handle:active { cursor: grabbing; }
+.data-table td.drag-handle-cell { width: 20px; text-align: center; padding: 6px 4px; }
+tr.drag-over > td { border-top: 2px solid var(--alpenglow); }
+.day-card.drag-over, .admin-camera-card.drag-over { border-top: 2px solid var(--alpenglow); }
+.admin-camera-card .drag-handle { position: absolute; top: 8px; left: 10px; }
+
+/* CSV import drop zone */
+.csv-drop { border: 2px dashed var(--border-strong); border-radius: var(--r-card); padding: 22px; text-align: center; color: var(--text-dim); font-size: 13px; margin-bottom: 14px; cursor: pointer; transition: border-color .15s var(--ease), background .15s var(--ease); }
+.csv-drop:hover, .csv-drop:focus-visible { border-color: var(--alpenglow); outline: none; }
+.csv-drop.dragover { border-color: var(--alpenglow); background: var(--surface2); color: var(--text); }
+
+/* Ellipsis trigger legible on basalt nav */
+.nav .ellipsis-btn { color: color-mix(in oklab, var(--parchment) 70%, transparent); }
+.nav .ellipsis-btn:hover { background: color-mix(in oklab, var(--parchment) 12%, transparent); color: var(--parchment); }
 
 @media (max-width: 768px) {
   .form-grid { grid-template-columns: 1fr; }
   .form-grid.cols-3, .form-grid.cols-4 { grid-template-columns: 1fr 1fr; }
   .projects-grid { grid-template-columns: 1fr; }
+  .nav { padding: 10px 16px; gap: 10px; }
+  .container { padding: 0 16px 48px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
 </style>
 </head>
@@ -263,8 +375,12 @@ window.addEventListener('load', async () => {
     email: clerkUser.primaryEmailAddress?.emailAddress || '',
     name: clerkUser.fullName || '',
   }});
+  loadPersistedPending();
+  if (pending.size) retryPending();
   render();
 });
+window.addEventListener('online', retryPending);
+setInterval(retryPending, 30000);
 
 // ===== Utilities =====
 async function api(path, opts = {}) {
@@ -282,36 +398,76 @@ async function api(path, opts = {}) {
     headers,
     body: opts.body ? JSON.stringify(opts.body) : undefined
   });
+  if (!res.ok) {
+    let msg = `${res.status} ${res.statusText}`;
+    try { const data = await res.json(); if (data?.error) msg = data.error; } catch {}
+    throw Object.assign(new Error(msg), { status: res.status });
+  }
   return res.json();
 }
 
 function toast(msg) {
   const el = document.getElementById('toast');
+  clearTimeout(el._timer);
+  el.classList.remove('with-action');
   el.textContent = msg;
   el.classList.add('show');
-  setTimeout(() => el.classList.remove('show'), 2000);
+  el._timer = setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+function toastUndo(msg, onUndo) {
+  const el = document.getElementById('toast');
+  clearTimeout(el._timer);
+  el.innerHTML = `${esc(msg)} &middot; <button class="toast-undo" type="button">Undo</button>`;
+  el.classList.add('show', 'with-action');
+  el.querySelector('.toast-undo').addEventListener('click', () => {
+    clearTimeout(el._timer);
+    el.classList.remove('show', 'with-action');
+    onUndo();
+  }, { once: true });
+  el._timer = setTimeout(() => el.classList.remove('show', 'with-action'), 6000);
 }
 
 // Custom modal system
+function focusableIn(container) {
+  return [...container.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')]
+    .filter(el => !el.disabled && el.offsetParent !== null);
+}
+
 function showModal(html) {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `<div class="modal">${html}</div>`;
   document.body.appendChild(overlay);
+  overlay._previouslyFocused = document.activeElement;
   requestAnimationFrame(() => overlay.classList.add('show'));
+  const modal = overlay.querySelector('.modal');
+  modal.tabIndex = -1;
+  (focusableIn(modal)[0] || modal).focus();
+  overlay._trapHandler = e => {
+    if (e.key !== 'Tab') return;
+    const items = focusableIn(modal);
+    if (!items.length) return;
+    const first = items[0], last = items[items.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  };
+  overlay.addEventListener('keydown', overlay._trapHandler);
   return overlay;
 }
 
 function closeModal(overlay) {
   overlay.classList.remove('show');
+  overlay.removeEventListener('keydown', overlay._trapHandler);
   setTimeout(() => overlay.remove(), 150);
+  overlay._previouslyFocused?.focus?.();
 }
 
-function modalPrompt(title, defaultValue = '') {
+function modalPrompt(title, defaultValue = '', inputType = 'text') {
   return new Promise(resolve => {
     const overlay = showModal(`
       <h3>${esc(title)}</h3>
-      <input type="text" class="modal-input" value="${esc(defaultValue)}" autofocus>
+      <input type="${esc(inputType)}" class="modal-input" value="${esc(defaultValue)}" autofocus>
       <div class="modal-actions">
         <button class="btn modal-cancel">Cancel</button>
         <button class="btn btn-primary modal-ok">OK</button>
@@ -355,16 +511,15 @@ function navigate(hash) {
 
 function fmtNum(n) { return Number(n||0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 function fmtInt(n) { return Number(n||0).toLocaleString('en-US'); }
+function fmtSize(gb) {
+  gb = Number(gb) || 0;
+  return gb >= 1000 ? (gb/1000).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' TB'
+    : gb.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' GB';
+}
 
 function formatDate(d) {
   if (!d) return '';
   return new Date(d+'T00:00:00').toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
-}
-
-// Debounce for auto-save
-function debounce(fn, ms = 500) {
-  let t;
-  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
 }
 
 // ===== Router =====
@@ -383,6 +538,7 @@ window.addEventListener('hashchange', render);
 // ===== Render =====
 async function render() {
   if (!window.Clerk || !window.Clerk.user) return;
+  const scrollY = window.scrollY;
   const route = getRoute();
   const app = document.getElementById('app');
   try {
@@ -394,13 +550,33 @@ async function render() {
     console.error(err);
     app.innerHTML = '<div class="container"><div class="card"><h2>Error</h2><p>' + err.message + '</p></div></div>';
   }
+  paintSyncStatus();
+  window.scrollTo(0, scrollY);
+}
+
+const sunIcon = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3.5"/><path d="M8 1v1.6M8 13.4V15M15 8h-1.6M2.6 8H1M12.7 3.3l-1.1 1.1M4.4 11.6l-1.1 1.1M12.7 12.7l-1.1-1.1M4.4 4.4l-1.1-1.1"/></svg>';
+const moonIcon = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 8.7A6 6 0 1 1 7.3 2 4.7 4.7 0 0 0 14 8.7z"/></svg>';
+
+function themeToggleHTML() {
+  const isDark = document.documentElement.classList.contains('dark');
+  const label = isDark ? 'Switch to light theme' : 'Switch to dark theme';
+  return `<button class="back-btn theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="${label}" title="${label}">${isDark ? sunIcon : moonIcon}</button>`;
+}
+
+function toggleTheme() {
+  const dark = !document.documentElement.classList.contains('dark');
+  document.documentElement.classList.toggle('dark', dark);
+  try { localStorage.setItem('dit-theme', dark ? 'dark' : 'light'); } catch {}
+  const btn = document.getElementById('themeToggle');
+  if (btn) btn.outerHTML = themeToggleHTML();
 }
 
 function userMenuHTML() {
   const user = window.Clerk.user;
   const avatarUrl = user.imageUrl;
   const name = user.fullName || user.primaryEmailAddress?.emailAddress || 'User';
-  return `<div class="user-menu">
+  return `${themeToggleHTML()}<div class="user-menu">
+    <span class="sync-status" id="syncStatus" aria-live="polite"><span class="sync-dot"></span><span class="sync-label"></span></span>
     ${currentUser?.isAdmin ? '<a class="admin-link" href="#/admin/users"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1a2.5 2.5 0 0 0-2.5 2.5v1A2.5 2.5 0 0 0 8 7a2.5 2.5 0 0 0 2.5-2.5v-1A2.5 2.5 0 0 0 8 1z"/><path d="M3 14v-1a5 5 0 0 1 10 0v1"/></svg> Admin</a>' : ''}
     <img class="user-avatar" src="${avatarUrl}" alt="">
     <span class="user-name">${esc(name)}</span>
@@ -444,7 +620,7 @@ async function renderDashboard(app) {
 
   app.innerHTML = `
     ${impersonateBannerHTML()}
-    <div class="nav"><h1>DIT Report Manager</h1><div class="spacer"></div>
+    <div class="nav"><a class="wordmark" href="#/">DIT report</a><div class="spacer"></div>
       <button class="btn btn-primary" onclick="createProject()">+ New Project</button>
       ${userMenuHTML()}
     </div>
@@ -452,7 +628,7 @@ async function renderDashboard(app) {
       ${projects.length === 0 ? `
         <div class="card" style="text-align:center;padding:48px">
           <h2 style="margin-bottom:8px">No projects yet</h2>
-          <p style="color:var(--text-dim);margin-bottom:16px">Create your first DIT offload report project to get started.</p>
+          <p style="color:var(--text-dim);margin-bottom:16px">Create a project to start logging offloads, benchmarks, and shoot days.</p>
           <button class="btn btn-primary" onclick="createProject()">+ New Project</button>
         </div>` : `
 
@@ -493,8 +669,8 @@ function projectCard(p, isArchived) {
       <span class="status-badge ${isArchived ? 'completed' : 'active'}">${isArchived ? 'Complete' : 'Active'}</span>
     </div>
     <div class="stats">
-      <span><strong>${p.dayCount || 0}</strong> days</span>
-      <span><strong>${fmtNum(p.totals?.gb || 0)}</strong> GB</span>
+      <span><strong>${p.dayCount || 0}</strong> ${p.dayCount === 1 ? 'day' : 'days'}</span>
+      <span><strong>${fmtSize(p.totals?.gb || 0)}</strong></span>
       <span><strong>${p.totals?.duration?.substring(0,8) || '00:00:00'}</strong></span>
     </div>
     <div class="card-actions">
@@ -504,10 +680,17 @@ function projectCard(p, isArchived) {
         <a class="edit-link" onclick="navigate('#/project/${p.id}')">${editIcon} Edit Project</a>
       `}
       <div class="ellipsis-wrap" onclick="event.stopPropagation()">
-        <button class="ellipsis-btn" onclick="event.stopPropagation(); toggleMenu(this)">&#8943;</button>
+        <button class="ellipsis-btn" onclick="event.stopPropagation(); toggleMenu(this)" aria-haspopup="menu" aria-expanded="false">&#8943;</button>
         <div class="ellipsis-menu">
           <button onclick="exportHTML(${p.id})">Export HTML</button>
           <button onclick="exportPDF(${p.id})">Export PDF</button>
+          <div class="menu-divider"></div>
+          ${p.share_token ? `
+            <button onclick="copyShareLink('${esc(p.share_token)}')">Copy share link</button>
+            <button onclick="disableShareLink(${p.id})">Disable share link</button>
+          ` : `
+            <button onclick="createShareLink(${p.id})">Create share link</button>
+          `}
           <div class="menu-divider"></div>
           ${isArchived ? `
             <button onclick="archiveProject(${p.id}, false)">Reactivate Project</button>
@@ -526,16 +709,23 @@ function toggleMenu(btn) {
   const menu = btn.nextElementSibling;
   const wasOpen = menu.classList.contains('open');
   closeAllMenus();
-  if (!wasOpen) menu.classList.add('open');
+  if (!wasOpen) { menu.classList.add('open'); btn.setAttribute('aria-expanded', 'true'); }
 }
 
 function closeAllMenus() {
-  document.querySelectorAll('.ellipsis-menu.open').forEach(m => m.classList.remove('open'));
+  document.querySelectorAll('.ellipsis-menu.open').forEach(m => {
+    m.classList.remove('open');
+    m.previousElementSibling?.setAttribute('aria-expanded', 'false');
+  });
 }
 
 // Global click-outside to close menus
 document.addEventListener('click', (e) => {
   if (!e.target.closest('.ellipsis-btn')) closeAllMenus();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { closeAllMenus(); closeSourcePicker(); }
 });
 
 async function createProject() {
@@ -559,6 +749,32 @@ async function archiveProject(id, archived) {
   render();
 }
 
+// Share links
+async function copyShareUrl(token) {
+  const url = `${location.origin}/api/r/${token}`;
+  try { await navigator.clipboard.writeText(url); } catch (err) { console.error('Clipboard write failed', err); }
+  toast('Link copied');
+}
+
+async function createShareLink(id) {
+  closeAllMenus();
+  const { token } = await api('/projects/' + id + '/share', { method: 'POST' });
+  await copyShareUrl(token);
+  render();
+}
+
+function copyShareLink(token) {
+  closeAllMenus();
+  copyShareUrl(token);
+}
+
+async function disableShareLink(id) {
+  closeAllMenus();
+  await api('/projects/' + id + '/share', { method: 'DELETE' });
+  toast('Share link disabled');
+  render();
+}
+
 // ===== Project Page =====
 async function renderProject(app, id) {
   const project = await api('/projects/' + id);
@@ -566,12 +782,24 @@ async function renderProject(app, id) {
   app.innerHTML = `
     ${impersonateBannerHTML()}
     <div class="nav">
+      <a class="wordmark" href="#/">DIT report</a>
       <button class="back-btn" onclick="navigate('#/')" title="Back to Projects"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3L5 8l5 5"/></svg></button>
       <div class="breadcrumb"><a href="#/">Projects</a> / ${esc(project.title)}</div>
       <div class="spacer"></div>
       <div class="btn-group">
         <button class="btn" onclick="exportHTML(${id})"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 10v3a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-3"/><path d="M8 2v8"/><path d="M5 7l3 3 3-3"/></svg> Export HTML</button>
         <button class="btn" onclick="exportPDF(${id})"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 1h8l3 3v11a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z"/><path d="M12 1v3h3"/><path d="M5 9h6"/><path d="M5 12h4"/></svg> Export PDF</button>
+        <div class="ellipsis-wrap">
+          <button class="ellipsis-btn" onclick="toggleMenu(this)" aria-haspopup="menu" aria-expanded="false" aria-label="More project options">&#8943;</button>
+          <div class="ellipsis-menu">
+            ${project.share_token ? `
+              <button onclick="copyShareLink('${esc(project.share_token)}')">Copy share link</button>
+              <button onclick="disableShareLink(${id})">Disable share link</button>
+            ` : `
+              <button onclick="createShareLink(${id})">Create share link</button>
+            `}
+          </div>
+        </div>
       </div>
       ${userMenuHTML()}
     </div>
@@ -589,6 +817,12 @@ async function renderProject(app, id) {
           <div class="form-group"><label>DIT / Data Manager</label><input name="dit_name" value="${esc(project.dit_name)}" data-field="dit_name"></div>
           <div class="form-group"><label>Email</label><input name="dit_email" value="${esc(project.dit_email)}" data-field="dit_email"></div>
           <div class="form-group"><label>Phone</label><input name="dit_phone" value="${esc(project.dit_phone)}" data-field="dit_phone"></div>
+          <div class="form-group"><label>Checksum</label>
+            <select data-field="checksum_type">
+              <option value="" ${!project.checksum_type ? 'selected' : ''}>&mdash;</option>
+              ${['xxHash64','xxHash3-64','MD5','SHA-1','SHA-256','C4'].map(c => `<option value="${c}" ${project.checksum_type === c ? 'selected' : ''}>${c}</option>`).join('')}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -599,14 +833,15 @@ async function renderProject(app, id) {
       <div class="days-grid">
         ${project.days.map(d => {
           const editIcon = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 1.5l3 3-9 9H2.5v-3l9-9z"/><path d="M10 3l3 3"/></svg>';
-          return `<div class="day-card" onclick="navigate('#/project/${id}/day/${d.id}')">
+          return `<div class="day-card" data-id="${d.id}" onclick="navigate('#/project/${id}/day/${d.id}')">
             <div style="display:flex;align-items:start;gap:8px">
+              <span class="drag-handle" aria-hidden="true" onclick="event.stopPropagation()" style="margin-top:2px">&#8942;&#8942;</span>
               <div style="flex:1">
                 <h4>Day ${String(d.day_number).padStart(2,'0')}</h4>
                 <div class="day-meta">${formatDate(d.date)}</div>
               </div>
               <div class="ellipsis-wrap" onclick="event.stopPropagation()">
-                <button class="ellipsis-btn" onclick="event.stopPropagation(); toggleMenu(this)">&#8943;</button>
+                <button class="ellipsis-btn" onclick="event.stopPropagation(); toggleMenu(this)" aria-haspopup="menu" aria-expanded="false">&#8943;</button>
                 <div class="ellipsis-menu">
                   <button onclick="cloneDay(${d.id})">Clone Day</button>
                   <div class="menu-divider"></div>
@@ -615,7 +850,7 @@ async function renderProject(app, id) {
               </div>
             </div>
             <div class="day-meta" style="margin-top:8px">
-              ${fmtNum(d.totals.gb)} GB &bull; ${d.totals.duration} &bull; ${d.totals.rollCount} rolls
+              ${fmtSize(d.totals.gb)} &bull; ${d.totals.duration} &bull; ${d.totals.rollCount} rolls
             </div>
             <div class="card-actions">
               <a class="edit-link" onclick="event.stopPropagation(); navigate('#/project/${id}/day/${d.id}')">${editIcon} Edit Day</a>
@@ -625,34 +860,25 @@ async function renderProject(app, id) {
 
       ${project.days.length > 0 ? `
       <div class="totals-bar" style="margin-top:24px">
-        <div><div class="t-label">Total Data</div><div class="t-value">${fmtNum(project.totals.gb)} GB</div></div>
+        <div><div class="t-label">Total Data</div><div class="t-value">${fmtSize(project.totals.gb)}</div></div>
         <div><div class="t-label">Total Duration</div><div class="t-value">${project.totals.duration}</div></div>
         <div><div class="t-label">Days</div><div class="t-value">${project.totals.dayCount}</div></div>
         <div><div class="t-label">Rolls</div><div class="t-value">${project.totals.rollCount}</div></div>
       </div>` : ''}
     </div>`;
 
-  // Auto-save project fields
-  const saveProject = debounce(async (field, value) => {
-    await api('/projects/' + id, { method: 'PUT', body: { [field]: value } });
-    toast('Saved');
-  });
-
-  document.getElementById('projectForm').addEventListener('input', e => {
-    const field = e.target.dataset.field;
-    if (field) saveProject(field, e.target.value);
-  });
+  wireDaysDrag(id);
 }
 
 async function addDay(projectId) {
-  const date = await modalPrompt('Shoot date (YYYY-MM-DD):', new Date().toISOString().slice(0, 10));
+  const date = await modalPrompt('Shoot date:', new Date().toISOString().slice(0, 10), 'date');
   if (!date) return;
   const { id } = await api('/projects/' + projectId + '/days', { method: 'POST', body: { date } });
   navigate('#/project/' + projectId + '/day/' + id);
 }
 
 async function cloneDay(dayId) {
-  const date = await modalPrompt('Date for the new cloned day (YYYY-MM-DD):', new Date().toISOString().slice(0, 10));
+  const date = await modalPrompt('Date for the new cloned day:', new Date().toISOString().slice(0, 10), 'date');
   if (!date) return;
   await api('/days/' + dayId + '/clone', { method: 'POST', body: { date } });
   toast('Day cloned');
@@ -701,18 +927,23 @@ async function renderDay(app, projectId, dayId) {
   app.innerHTML = `
     ${impersonateBannerHTML()}
     <div class="nav">
+      <a class="wordmark" href="#/">DIT report</a>
       <button class="back-btn" onclick="navigate('#/project/${projectId}')" title="Back to ${esc(project.title)}"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3L5 8l5 5"/></svg></button>
       <div class="breadcrumb">
         <a href="#/">Projects</a> / <a href="#/project/${projectId}">${esc(project.title)}</a> / Day ${String(day.day_number).padStart(2,'0')}
       </div>
       <div class="spacer"></div>
+      <div class="btn-group">
+        <button class="btn" onclick="exportHTML(${projectId})"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 10v3a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-3"/><path d="M8 2v8"/><path d="M5 7l3 3 3-3"/></svg> Export HTML</button>
+        <button class="btn" onclick="exportPDF(${projectId})"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 1h8l3 3v11a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z"/><path d="M12 1v3h3"/><path d="M5 9h6"/><path d="M5 12h4"/></svg> Export PDF</button>
+      </div>
       ${userMenuHTML()}
     </div>
     <div class="container">
       <div class="card">
         <div class="form-grid">
-          <div class="form-group"><label>Day Number</label><input type="number" value="${day.day_number}" id="dayNumber"></div>
-          <div class="form-group"><label>Date</label><input type="date" value="${day.date}" id="dayDate"></div>
+          <div class="form-group"><label>Day Number</label><input type="number" value="${day.day_number}" id="dayNumber" data-field="day_number"></div>
+          <div class="form-group"><label>Date</label><input type="date" value="${day.date}" id="dayDate" data-field="date"></div>
         </div>
       </div>
 
@@ -721,21 +952,21 @@ async function renderDay(app, projectId, dayId) {
       <div class="card" style="overflow-x:auto">
         <table class="data-table" id="benchTable">
           <thead><tr>
-            <th>Drive Name</th><th>Write (MB/s)</th><th>Read (MB/s)</th><th>Capacity</th><th>Format</th><th>Notes</th><th></th>
+            <th></th><th>Drive Name</th><th>Write (MB/s)</th><th>Read (MB/s)</th><th>Capacity</th><th>Format</th><th>Notes</th><th></th>
           </tr></thead>
           <tbody>
             ${day.benchmarks.map(b => benchRow(b)).join('')}
           </tbody>
         </table>
-        <div style="padding:8px 12px"><button class="btn btn-sm" onclick="addBenchmark(${dayId})">+ Add Drive</button></div>
+        <div style="padding:8px 12px"><button class="btn btn-sm btn-add" onclick="addBenchmark(${dayId})">+ Add Drive</button></div>
       </div>
 
       <!-- Sources -->
       <div class="section-title"><h3>Media Sources</h3></div>
       <div class="admin-camera-cards" id="cameraCards">
         ${day.cameras.map(c => cameraCard(c)).join('')}
-        <div class="admin-camera-card" style="border-style:dashed;display:flex;align-items:center;justify-content:center;cursor:pointer;min-height:120px" onclick="showSourcePicker(${dayId}, this)">
-          <span style="color:var(--text-dim);font-size:14px">+ Add Source</span>
+        <div class="admin-camera-card" style="border-style:dashed;display:flex;align-items:center;justify-content:center;cursor:pointer;min-height:120px" onclick="showSourcePicker(${dayId}, this)" aria-haspopup="menu" aria-expanded="false">
+          <span style="color:color-mix(in oklab, var(--moss) 55%, var(--text));font-size:14px;font-weight:500">+ Add Source</span>
         </div>
       </div>
 
@@ -744,41 +975,37 @@ async function renderDay(app, projectId, dayId) {
       <div class="card" style="overflow-x:auto">
         <table class="data-table" id="rollsTable">
           <thead><tr>
-            <th>Roll</th><th>Card Serial</th><th>GB</th><th>Duration (TC)</th><th style="text-align:center">Master</th><th style="text-align:center">Backup</th><th>Notes</th><th></th>
+            <th></th><th>Roll</th><th>Card Serial</th><th>Source</th><th>GB</th><th>Duration (TC)</th><th style="text-align:center">Master</th><th style="text-align:center">Backup</th><th>Notes</th><th></th>
           </tr></thead>
           <tbody id="rollsBody">
-            ${day.rolls.map(r => rollRow(r)).join('')}
+            ${day.rolls.map(r => rollRow(r, day.cameras)).join('')}
           </tbody>
         </table>
         <div style="padding:8px 12px" class="btn-group">
-          <button class="btn btn-sm" onclick="addRoll(${dayId})">+ Add Roll</button>
+          <button class="btn btn-sm btn-add" onclick="addRoll(${dayId})">+ Add Roll</button>
+          <button class="btn btn-sm btn-add" onclick="openCsvImport(${dayId})">Import CSV</button>
         </div>
         <div class="totals-bar" id="dayTotals"></div>
       </div>
     </div>`;
 
-  // Auto-save day info
-  const saveDay = debounce(async () => {
-    const dn = document.getElementById('dayNumber').value;
-    const dd = document.getElementById('dayDate').value;
-    await api('/days/' + dayId, { method: 'PUT', body: { day_number: parseInt(dn), date: dd } });
-    toast('Saved');
-  });
-  document.getElementById('dayNumber').addEventListener('input', saveDay);
-  document.getElementById('dayDate').addEventListener('input', saveDay);
-
-  updateDayTotals(dayId);
+  reapplyPendingDeletes();
+  updateDayTotals();
+  wireBenchDrag(dayId);
+  wireCameraDrag(dayId);
+  wireRollsDrag(dayId);
 }
 
 function benchRow(b) {
   return `<tr data-id="${b.id}">
+    <td class="drag-handle-cell"><span class="drag-handle" aria-hidden="true">&#8942;&#8942;</span></td>
     <td><input value="${esc(b.drive_name)}" data-field="drive_name" class="mono"></td>
     <td><input value="${b.write_speed}" data-field="write_speed" class="mono" style="width:90px"></td>
     <td><input value="${b.read_speed}" data-field="read_speed" class="mono" style="width:90px"></td>
     <td><input value="${esc(b.capacity)}" data-field="capacity" style="width:70px"></td>
     <td><input value="${esc(b.format)}" data-field="format" class="mono" style="width:70px"></td>
     <td><input value="${esc(b.notes)}" data-field="notes"></td>
-    <td class="row-actions"><button class="btn btn-sm btn-danger" onclick="deleteBenchmark(${b.id})">x</button></td>
+    <td class="row-actions"><button class="btn btn-sm btn-danger" onclick="deleteBenchmark(${b.id})">&times;</button></td>
   </tr>`;
 }
 
@@ -834,9 +1061,10 @@ function cameraCard(c) {
   }
 
   return `<div class="admin-camera-card" data-id="${c.id}">
+    <span class="drag-handle" aria-hidden="true">&#8942;&#8942;</span>
     ${brand ? `<img class="brand-logo brand-${brand}" src="/icons/cameras/${brand}.svg?v=2" alt="">` : ''}
     <div class="ellipsis-wrap">
-      <button class="ellipsis-btn" onclick="toggleMenu(this)">&#8943;</button>
+      <button class="ellipsis-btn" onclick="toggleMenu(this)" aria-haspopup="menu" aria-expanded="false">&#8943;</button>
       <div class="ellipsis-menu">
         <button onclick="duplicateCamera(${c.id})">Duplicate</button>
         <div class="menu-divider"></div>
@@ -848,24 +1076,19 @@ function cameraCard(c) {
   </div>`;
 }
 
-function rollRow(r) {
-  if (r.is_break) {
-    return `<tr data-id="${r.id}" class="break-row">
-      <td><input value="${esc(r.roll_name)}" data-field="roll_name" class="mono" style="font-style:italic;color:var(--accent)"></td>
-      <td colspan="5" style="text-align:center;color:var(--text-dim);font-style:italic">-- break --</td>
-      <td></td>
-      <td class="row-actions"><button class="btn btn-sm btn-danger" onclick="deleteRoll(${r.id})">x</button></td>
-    </tr>`;
-  }
+function rollRow(r, cameras) {
+  const camOpts = (cameras || []).map(c => `<option value="${c.id}" ${r.camera_id === c.id ? 'selected' : ''}>${esc(c.label || c.camera_name)}</option>`).join('');
   return `<tr data-id="${r.id}">
+    <td class="drag-handle-cell"><span class="drag-handle" aria-hidden="true">&#8942;&#8942;</span></td>
     <td><input value="${esc(r.roll_name)}" data-field="roll_name" class="mono" style="width:130px"></td>
     <td><input value="${esc(r.card_serial)}" data-field="card_serial" class="mono" style="width:120px"></td>
+    <td><select data-field="camera_id" aria-label="Source" style="width:110px"><option value="">&mdash;</option>${camOpts}</select></td>
     <td><input value="${r.gb}" data-field="gb" class="mono" style="width:90px"></td>
     <td><input value="${esc(r.duration_tc)}" data-field="duration_tc" class="mono" style="width:110px" placeholder="HH:MM:SS:FF"></td>
     <td style="text-align:center"><input type="checkbox" data-field="master" ${r.master ? 'checked' : ''}></td>
     <td style="text-align:center"><input type="checkbox" data-field="backup" ${r.backup ? 'checked' : ''}></td>
     <td><input value="${esc(r.notes)}" data-field="notes" style="min-width:120px"></td>
-    <td class="row-actions"><button class="btn btn-sm btn-danger" onclick="deleteRoll(${r.id})">x</button></td>
+    <td class="row-actions"><button class="btn btn-sm btn-danger" onclick="deleteRoll(${r.id})">&times;</button></td>
   </tr>`;
 }
 
@@ -878,8 +1101,8 @@ async function addBenchmark(dayId) {
 }
 
 async function deleteBenchmark(id) {
-  await api('/benchmarks/' + id, { method: 'DELETE' });
-  render();
+  document.querySelector(`#benchTable tr[data-id="${id}"]`)?.remove();
+  optimisticDelete('benchmark', id, '/benchmarks/' + id);
 }
 
 // Sources
@@ -891,7 +1114,7 @@ const sourceTypeDefaults = {
 };
 
 function showSourcePicker(dayId, el) {
-  document.querySelectorAll('.source-picker').forEach(p => p.remove());
+  closeSourcePicker();
   const picker = document.createElement('div');
   picker.className = 'source-picker';
   picker.innerHTML = `
@@ -901,16 +1124,27 @@ function showSourcePicker(dayId, el) {
     <button onclick="addCamera(${dayId}, 'misc')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> Misc Source</button>
   `;
   document.body.appendChild(picker);
+  el.setAttribute('aria-expanded', 'true');
   const rect = el.getBoundingClientRect();
   picker.style.left = (rect.left + rect.width / 2 - picker.offsetWidth / 2) + 'px';
   picker.style.top = (rect.top - picker.offsetHeight - 8) + 'px';
   if (parseFloat(picker.style.top) < 0) picker.style.top = (rect.bottom + 8) + 'px';
-  const close = (e) => { if (!picker.contains(e.target) && !el.contains(e.target)) { picker.remove(); document.removeEventListener('click', close); } };
+  const close = (e) => { if (!picker.contains(e.target) && !el.contains(e.target)) closeSourcePicker(); };
   setTimeout(() => document.addEventListener('click', close), 0);
+  picker._closeHandler = close;
+  picker._trigger = el;
+}
+
+function closeSourcePicker() {
+  document.querySelectorAll('.source-picker').forEach(p => {
+    if (p._closeHandler) document.removeEventListener('click', p._closeHandler);
+    p._trigger?.setAttribute('aria-expanded', 'false');
+    p.remove();
+  });
 }
 
 async function addCamera(dayId, sourceType = 'camera') {
-  document.querySelectorAll('.source-picker').forEach(p => p.remove());
+  closeSourcePicker();
   const defaults = sourceTypeDefaults[sourceType] || sourceTypeDefaults.camera;
   const { id } = await api('/days/' + dayId + '/cameras', { method: 'POST', body: { ...defaults, source_type: sourceType } });
   render();
@@ -918,8 +1152,8 @@ async function addCamera(dayId, sourceType = 'camera') {
 
 async function deleteCamera(id) {
   closeAllMenus();
-  await api('/cameras/' + id, { method: 'DELETE' });
-  render();
+  document.querySelector(`#cameraCards [data-id="${id}"]`)?.remove();
+  optimisticDelete('camera', id, '/cameras/' + id);
 }
 
 async function duplicateCamera(id) {
@@ -930,80 +1164,445 @@ async function duplicateCamera(id) {
 }
 
 // Rolls
-async function addRoll(dayId) {
-  const { id } = await api('/days/' + dayId + '/rolls', { method: 'POST', body: { roll_name: 'NEW_ROLL' } });
-  render();
+function incrementRollName(name) {
+  const m = /\d+/.exec(name || '');
+  if (!m) return 'A001';
+  const num = String(Number(m[0]) + 1).padStart(m[0].length, '0');
+  return name.slice(0, m.index) + num + name.slice(m.index + m[0].length);
 }
 
-async function addBreak(dayId) {
-  const name = await modalPrompt('Break name:', 'LUNCH');
-  if (!name) return;
-  await api('/days/' + dayId + '/rolls', { method: 'POST', body: { roll_name: name, is_break: true } });
-  render();
+async function addRoll(dayId) {
+  const rows = document.querySelectorAll('#rollsBody tr');
+  const lastRow = rows[rows.length - 1];
+  let roll_name = 'A001', camera_id = null;
+  if (lastRow) {
+    roll_name = incrementRollName(lastRow.querySelector('[data-field="roll_name"]')?.value);
+    const camVal = lastRow.querySelector('[data-field="camera_id"]')?.value;
+    camera_id = camVal ? parseInt(camVal, 10) : null;
+  }
+  const { id } = await api('/days/' + dayId + '/rolls', { method: 'POST', body: { roll_name, camera_id } });
+  await render();
+  document.querySelector(`#rollsBody tr[data-id="${id}"] [data-field="roll_name"]`)?.focus();
 }
+
+// Enter in any input of the last roll row adds the next roll
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' || !e.target.matches('input, select')) return;
+  const row = e.target.closest('#rollsBody tr');
+  if (!row || row !== row.parentElement.lastElementChild) return;
+  e.preventDefault();
+  const dayId = getRoute().dayId;
+  if (dayId) addRoll(dayId);
+});
 
 async function deleteRoll(id) {
-  await api('/rolls/' + id, { method: 'DELETE' });
-  render();
+  document.querySelector(`#rollsBody tr[data-id="${id}"]`)?.remove();
+  updateDayTotals();
+  optimisticDelete('roll', id, '/rolls/' + id);
 }
 
-// ===== Auto-save delegation =====
-const saveBenchmark = debounce(async (id, field, value) => {
-  await api('/benchmarks/' + id, { method: 'PUT', body: { [field]: value } });
-  toast('Saved');
-});
+// ===== CSV import =====
+const CSV_FIELDS = [
+  { value: '', label: 'Skip' },
+  { value: 'roll_name', label: 'Roll' },
+  { value: 'card_serial', label: 'Card Serial' },
+  { value: 'gb', label: 'GB' },
+  { value: 'duration_tc', label: 'Duration' },
+  { value: 'notes', label: 'Notes' },
+];
+const CSV_HEADER_KEYWORDS = {
+  roll_name: ['name', 'clip', 'reel', 'roll'],
+  card_serial: ['serial', 'card', 'media', 'volume'],
+  gb: ['size', 'gb', 'gigabyte'],
+  duration_tc: ['duration', 'tc', 'length'],
+  notes: ['note', 'comment'],
+};
 
-const saveCamera = debounce(async (id, field, value) => {
-  await api('/cameras/' + id, { method: 'PUT', body: { [field]: value } });
-  toast('Saved');
-});
+function guessCsvField(header) {
+  const h = (header || '').toLowerCase();
+  for (const [field, kws] of Object.entries(CSV_HEADER_KEYWORDS)) {
+    if (kws.some(k => h.includes(k))) return field;
+  }
+  return '';
+}
 
-const saveRoll = debounce(async (id, field, value) => {
-  await api('/rolls/' + id, { method: 'PUT', body: { [field]: value } });
-  toast('Saved');
-  // Recalc totals
-  const route = getRoute();
-  if (route.dayId) updateDayTotals(route.dayId);
-});
+// Handles quoted fields (with embedded commas/newlines, "" escapes) and CRLF line endings
+function parseCSV(text) {
+  const rows = [];
+  let row = [], field = '', inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') { if (text[i+1] === '"') { field += '"'; i++; } else inQuotes = false; }
+      else field += c;
+    } else if (c === '"') inQuotes = true;
+    else if (c === ',') { row.push(field); field = ''; }
+    else if (c === '\r') { /* skip, \n closes the row */ }
+    else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+    else field += c;
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(c => c.trim() !== ''));
+}
 
-document.addEventListener('input', e => {
-  const row = e.target.closest('[data-id]');
-  if (!row) return;
-  const id = row.dataset.id;
-  const field = e.target.dataset.field;
-  if (!field) return;
+// MB/GB/TB suffixes convert directly; unitless large numbers are treated as raw bytes
+function parseSizeToGb(v) {
+  const s = String(v || '').trim().replace(/,/g, '');
+  const m = s.match(/^([\d.]+)\s*([a-zA-Z]*)$/);
+  if (!m) return parseFloat(s) || 0;
+  const num = parseFloat(m[1]) || 0;
+  const unit = m[2].toUpperCase();
+  if (unit.startsWith('TB')) return num * 1000;
+  if (unit.startsWith('MB')) return num / 1000;
+  if (unit.startsWith('KB')) return num / 1e6;
+  if (unit === 'B' || unit === 'BYTES') return num / 1e9;
+  if (unit === '' && num > 1e6) return num / 1e9; // bytes-like magnitude, no unit given
+  return num;
+}
 
+function openCsvImport(dayId) {
+  const overlay = showModal(`
+    <h3>Import CSV</h3>
+    <div class="csv-drop" id="csvDrop" tabindex="0" role="button" aria-label="Drop a CSV file here, or click to paste in the text area below">Drop a CSV file or paste below</div>
+    <textarea id="csvText" rows="5" style="width:100%;margin-bottom:16px;font-family:monospace;font-size:12px" placeholder="roll,serial,gb,duration"></textarea>
+    <div id="csvMapWrap"></div>
+    <div id="csvPreviewWrap"></div>
+    <div class="modal-actions">
+      <button class="btn modal-cancel">Cancel</button>
+      <button class="btn btn-primary" id="csvImportBtn" disabled>Import</button>
+    </div>
+  `);
+  overlay.querySelector('.modal').style.maxWidth = '680px';
+
+  const drop = overlay.querySelector('#csvDrop');
+  const textEl = overlay.querySelector('#csvText');
+  const mapWrap = overlay.querySelector('#csvMapWrap');
+  const prevWrap = overlay.querySelector('#csvPreviewWrap');
+  const importBtn = overlay.querySelector('#csvImportBtn');
+  let parsed = null;
+
+  drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('dragover'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('dragover'));
+  drop.addEventListener('drop', e => {
+    e.preventDefault();
+    drop.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => { textEl.value = reader.result; parseAndRender(); };
+    reader.readAsText(file);
+  });
+  drop.addEventListener('click', () => textEl.focus());
+  drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); textEl.focus(); } });
+  textEl.addEventListener('input', parseAndRender);
+
+  function parseAndRender() {
+    const text = textEl.value.trim();
+    if (!text) { mapWrap.innerHTML = ''; prevWrap.innerHTML = ''; importBtn.disabled = true; parsed = null; return; }
+    const rows = parseCSV(text);
+    if (!rows.length) { mapWrap.innerHTML = ''; prevWrap.innerHTML = ''; importBtn.disabled = true; parsed = null; return; }
+    const first = rows[0];
+    const hasHeader = first.some(c => guessCsvField(c) !== '');
+    let headers, dataRows, mapping;
+    if (hasHeader) {
+      headers = first;
+      dataRows = rows.slice(1);
+      mapping = headers.map(h => guessCsvField(h));
+    } else {
+      headers = first.map((_, i) => `Column ${i + 1}`);
+      dataRows = rows;
+      const defaults = ['roll_name', 'card_serial', 'gb', 'duration_tc'];
+      mapping = first.map((_, i) => defaults[i] || '');
+    }
+    parsed = { headers, dataRows, mapping };
+    renderMapping();
+    renderPreview();
+    importBtn.disabled = false;
+  }
+
+  function renderMapping() {
+    mapWrap.innerHTML = `<div class="section-title"><h3>Map Columns</h3></div>
+      <div class="form-grid cols-4">
+        ${parsed.headers.map((h, i) => `
+          <div class="form-group">
+            <label>${esc(h)}</label>
+            <select data-col="${i}" class="csv-map-select">
+              ${CSV_FIELDS.map(f => `<option value="${f.value}" ${parsed.mapping[i] === f.value ? 'selected' : ''}>${f.label}</option>`).join('')}
+            </select>
+          </div>`).join('')}
+      </div>`;
+    mapWrap.querySelectorAll('.csv-map-select').forEach(sel => {
+      sel.addEventListener('change', () => { parsed.mapping[+sel.dataset.col] = sel.value; renderPreview(); });
+    });
+  }
+
+  function renderPreview() {
+    prevWrap.innerHTML = `<div class="section-title"><h3>Preview</h3></div>
+      <div style="overflow-x:auto;margin-bottom:8px"><table class="data-table">
+        <thead><tr>${parsed.mapping.map(f => f ? `<th>${esc(CSV_FIELDS.find(x => x.value === f).label)}</th>` : '').join('')}</tr></thead>
+        <tbody>${parsed.dataRows.slice(0, 5).map(r => `<tr>${parsed.mapping.map((f, i) => f ? `<td>${esc(r[i] || '')}</td>` : '').join('')}</tr>`).join('')}</tbody>
+      </table></div>
+      <div style="color:var(--text-dim);font-size:12px">${parsed.dataRows.length} row${parsed.dataRows.length === 1 ? '' : 's'} detected</div>`;
+  }
+
+  importBtn.addEventListener('click', async () => {
+    if (!parsed) return;
+    const rolls = parsed.dataRows.map(r => {
+      const obj = {};
+      parsed.mapping.forEach((f, i) => {
+        if (!f) return;
+        const raw = (r[i] || '').trim();
+        obj[f] = f === 'gb' ? parseSizeToGb(raw) : raw;
+      });
+      return obj;
+    }).filter(r => Object.keys(r).length > 0);
+    if (!rolls.length) { closeModal(overlay); return; }
+    try {
+      const { ids } = await api('/days/' + dayId + '/rolls/bulk', { method: 'POST', body: { rolls } });
+      closeModal(overlay);
+      toast(`Imported ${ids.length} roll${ids.length === 1 ? '' : 's'}`);
+      render();
+    } catch (err) {
+      toast('Import failed');
+    }
+  });
+  overlay.querySelector('.modal-cancel').addEventListener('click', () => closeModal(overlay));
+  overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(overlay); });
+  document.addEventListener('keydown', function escHandler(e) {
+    if (e.key !== 'Escape') return;
+    document.removeEventListener('keydown', escHandler);
+    closeModal(overlay);
+  });
+}
+
+// ===== Undoable delete =====
+const pendingDeletes = new Map(); // key `${entity}:${id}` -> timeoutId
+
+function optimisticDelete(entity, id, apiPath) {
+  const key = `${entity}:${id}`;
+  clearTimeout(pendingDeletes.get(key));
+  const timer = setTimeout(async () => {
+    pendingDeletes.delete(key);
+    try { await api(apiPath, { method: 'DELETE' }); }
+    catch (err) { console.error('Delete failed', err); }
+  }, 6000);
+  pendingDeletes.set(key, timer);
+  toastUndo('Deleted', () => {
+    clearTimeout(pendingDeletes.get(key));
+    pendingDeletes.delete(key);
+    render();
+  });
+}
+
+// Re-hide rows whose delete is still pending after a re-render (e.g. an undo elsewhere)
+function reapplyPendingDeletes() {
+  for (const key of pendingDeletes.keys()) {
+    const [entity, id] = key.split(':');
+    const sel = entity === 'roll' ? `#rollsBody tr[data-id="${id}"]`
+      : entity === 'benchmark' ? `#benchTable tr[data-id="${id}"]`
+      : `#cameraCards [data-id="${id}"]`;
+    document.querySelector(sel)?.remove();
+  }
+}
+
+// ===== Drag reorder =====
+let dragSrcEl = null;
+
+function initDragReorder(containerSel, itemSel, reorderFn) {
+  const container = document.querySelector(containerSel);
+  if (!container) return;
+  container.querySelectorAll(itemSel).forEach(item => {
+    const handle = item.querySelector('.drag-handle');
+    if (!handle) return;
+    handle.addEventListener('mousedown', () => { item.draggable = true; });
+    item.addEventListener('dragstart', e => {
+      dragSrcEl = item;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', item.dataset.id);
+    });
+    item.addEventListener('dragend', () => {
+      item.draggable = false;
+      container.querySelectorAll(itemSel).forEach(i => i.classList.remove('drag-over'));
+      dragSrcEl = null;
+    });
+    item.addEventListener('dragover', e => {
+      if (!dragSrcEl || dragSrcEl === item) return;
+      e.preventDefault();
+      container.querySelectorAll(itemSel).forEach(i => i.classList.remove('drag-over'));
+      item.classList.add('drag-over');
+    });
+    item.addEventListener('dragleave', () => item.classList.remove('drag-over'));
+    item.addEventListener('drop', async e => {
+      e.preventDefault();
+      item.classList.remove('drag-over');
+      if (!dragSrcEl || dragSrcEl === item) return;
+      item.parentNode.insertBefore(dragSrcEl, item);
+      const ids = [...container.querySelectorAll(itemSel)].map(i => Number(i.dataset.id));
+      setSyncStatus('saving');
+      try { await reorderFn(ids); setSyncStatus('saved'); }
+      catch (err) { console.error('Reorder failed', err); setSyncStatus('offline'); toast('Reorder failed'); }
+    });
+  });
+}
+
+function wireBenchDrag(dayId) {
+  initDragReorder('#benchTable tbody', 'tr[data-id]', ids => api(`/days/${dayId}/benchmarks/reorder`, { method: 'PUT', body: { ids } }));
+}
+function wireCameraDrag(dayId) {
+  initDragReorder('#cameraCards', '.admin-camera-card[data-id]', ids => api(`/days/${dayId}/cameras/reorder`, { method: 'PUT', body: { ids } }));
+}
+function wireRollsDrag(dayId) {
+  initDragReorder('#rollsBody', 'tr[data-id]', ids => api(`/days/${dayId}/rolls/reorder`, { method: 'PUT', body: { ids } }));
+}
+function wireDaysDrag(projectId) {
+  initDragReorder('.days-grid', '.day-card[data-id]', ids => api(`/projects/${projectId}/days/reorder`, { method: 'PUT', body: { ids } }));
+}
+
+// ===== Save queue =====
+const pending = new Map(); // key `${entity}:${id}:${field}` -> {entity,id,field,value}
+const saveTimers = new Map();
+const entityBase = { roll: '/rolls/', benchmark: '/benchmarks/', camera: '/cameras/', project: '/projects/', day: '/days/' };
+
+function saveContext(target) {
+  const field = target.dataset.field;
+  if (!field) return null;
+  if (target.dataset.type === 'camera') {
+    const id = target.closest('[data-id]')?.dataset.id;
+    return id ? { entity: 'camera', id, field } : null;
+  }
+  if (target.closest('#benchTable')) {
+    const id = target.closest('[data-id]')?.dataset.id;
+    return id ? { entity: 'benchmark', id, field } : null;
+  }
+  if (target.closest('#rollsTable')) {
+    const id = target.closest('[data-id]')?.dataset.id;
+    return id ? { entity: 'roll', id, field } : null;
+  }
+  if (target.closest('#projectForm')) {
+    const id = getRoute().projectId;
+    return id ? { entity: 'project', id, field } : null;
+  }
+  if (target.id === 'dayNumber' || target.id === 'dayDate') {
+    const id = getRoute().dayId;
+    return id ? { entity: 'day', id, field } : null;
+  }
+  return null;
+}
+
+function queueSave(entity, id, field, value) {
+  const key = `${entity}:${id}:${field}`;
+  pending.set(key, { entity, id, field, value });
+  clearTimeout(saveTimers.get(key));
+  saveTimers.set(key, setTimeout(() => flushEntity(entity, id), 400));
+}
+
+function flushKey(key) {
+  if (!pending.has(key)) return;
+  clearTimeout(saveTimers.get(key));
+  saveTimers.delete(key);
+  const [entity, id] = key.split(':');
+  flushEntity(entity, id);
+}
+
+async function flushEntity(entity, id) {
+  const prefix = `${entity}:${id}:`;
+  const entries = [...pending].filter(([k]) => k.startsWith(prefix));
+  if (!entries.length) return;
+  entries.forEach(([k]) => { clearTimeout(saveTimers.get(k)); saveTimers.delete(k); pending.delete(k); });
+  persistPending();
+  setSyncStatus('saving');
+  const body = {};
+  entries.forEach(([, v]) => { body[v.field] = v.value; });
+  try {
+    await api(entityBase[entity] + id, { method: 'PUT', body });
+    setSyncStatus('saved');
+  } catch (err) {
+    console.error('Save failed', err);
+    entries.forEach(([k, v]) => pending.set(k, v));
+    persistPending();
+    setSyncStatus('offline');
+  }
+}
+
+function persistPending() {
+  try {
+    if (pending.size === 0) localStorage.removeItem('dit-pending-saves');
+    else localStorage.setItem('dit-pending-saves', JSON.stringify([...pending.values()]));
+  } catch {}
+}
+
+function loadPersistedPending() {
+  try {
+    const raw = localStorage.getItem('dit-pending-saves');
+    if (!raw) return;
+    for (const item of JSON.parse(raw)) pending.set(`${item.entity}:${item.id}:${item.field}`, item);
+  } catch {}
+}
+
+function retryPending() {
+  const groups = new Set([...pending.keys()].map(k => k.split(':').slice(0, 2).join(':')));
+  groups.forEach(g => { const [entity, id] = g.split(':'); flushEntity(entity, id); });
+}
+
+let syncState = null;
+let syncFadeTimer;
+function setSyncStatus(state) { syncState = state; paintSyncStatus(); }
+function paintSyncStatus() {
+  const el = document.getElementById('syncStatus');
+  if (!el) return;
+  clearTimeout(syncFadeTimer);
+  el.classList.remove('saving', 'saved', 'offline', 'fade');
+  const label = el.querySelector('.sync-label');
+  if (syncState === 'saving') { el.classList.add('saving'); label.textContent = 'Saving…'; }
+  else if (syncState === 'saved') {
+    el.classList.add('saved'); label.textContent = 'Saved';
+    syncFadeTimer = setTimeout(() => el.classList.add('fade'), 2000);
+  } else if (syncState === 'offline') { el.classList.add('offline'); label.textContent = 'Offline — will retry'; }
+  else label.textContent = '';
+}
+
+function handleFieldEvent(e) {
+  const ctx = saveContext(e.target);
+  if (!ctx) return;
   const numericFields = ['write_speed', 'read_speed', 'gb'];
   let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-  if (e.target.type === 'number' || numericFields.includes(field)) value = parseFloat(value) || 0;
+  if (ctx.field === 'camera_id') value = value === '' ? null : parseInt(value, 10);
+  else if (e.target.type === 'number' || numericFields.includes(ctx.field)) value = parseFloat(value) || 0;
 
   // Validate timecode
-  if (field === 'duration_tc') {
+  if (ctx.field === 'duration_tc') {
     const valid = /^\d{2}:\d{2}:\d{2}:\d{2}$/.test(value);
     e.target.classList.toggle('invalid', value && !valid);
   }
 
-  if (e.target.dataset.type === 'camera') saveCamera(id, field, value);
-  else if (e.target.closest('#benchTable')) saveBenchmark(id, field, value);
-  else if (e.target.closest('#rollsTable')) saveRoll(id, field, value);
+  queueSave(ctx.entity, ctx.id, ctx.field, value);
+  if (ctx.entity === 'roll' && (ctx.field === 'gb' || ctx.field === 'duration_tc')) updateDayTotals();
+}
+document.addEventListener('input', handleFieldEvent);
+// Selects don't reliably fire 'input' on every browser; 'change' covers them too (idempotent with the above)
+document.addEventListener('change', e => { if (e.target.tagName === 'SELECT') handleFieldEvent(e); });
+
+document.addEventListener('focusout', e => {
+  const ctx = saveContext(e.target);
+  if (ctx) flushKey(`${ctx.entity}:${ctx.id}:${ctx.field}`);
 });
 
-async function updateDayTotals(dayId) {
-  const day = await api('/days/' + dayId);
-  const nonBreak = day.rolls.filter(r => !r.is_break);
-  const totalGb = nonBreak.reduce((s, r) => s + (r.gb || 0), 0);
-  const totalFrames = nonBreak.reduce((s, r) => s + (r.frames || 0), 0);
-  // Sum timecodes client-side
-  const tcs = nonBreak.map(r => r.duration_tc).filter(t => t && /^\d{2}:\d{2}:\d{2}:\d{2}$/.test(t));
-  const totalDuration = sumTC(tcs);
-
+// Recompute the day totals bar from the live DOM (optimistic, no fetch)
+function updateDayTotals() {
   const el = document.getElementById('dayTotals');
-  if (el) {
-    el.innerHTML = `
-      <div><div class="t-label">Total Data</div><div class="t-value">${fmtNum(totalGb)} GB</div></div>
-      <div><div class="t-label">Total Duration</div><div class="t-value">${totalDuration}</div></div>
-      <div><div class="t-label">Rolls</div><div class="t-value">${nonBreak.length}</div></div>`;
-  }
+  if (!el) return;
+  const rows = document.querySelectorAll('#rollsBody tr');
+  let totalGb = 0;
+  const tcs = [];
+  rows.forEach(row => {
+    totalGb += parseFloat(row.querySelector('[data-field="gb"]')?.value) || 0;
+    const tc = row.querySelector('[data-field="duration_tc"]')?.value;
+    if (tc && /^\d{2}:\d{2}:\d{2}:\d{2}$/.test(tc)) tcs.push(tc);
+  });
+  el.innerHTML = `
+    <div><div class="t-label">Total Data</div><div class="t-value">${fmtSize(totalGb)}</div></div>
+    <div><div class="t-label">Total Duration</div><div class="t-value">${sumTC(tcs)}</div></div>
+    <div><div class="t-label">Rolls</div><div class="t-value">${rows.length}</div></div>`;
 }
 
 function sumTC(tcs) {
@@ -1053,6 +1652,7 @@ async function renderAdminUsers(app) {
   app.innerHTML = `
     ${impersonateBannerHTML()}
     <div class="nav">
+      <a class="wordmark" href="#/">DIT report</a>
       <button class="back-btn" onclick="navigate('#/')" title="Back to Projects"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3L5 8l5 5"/></svg></button>
       <div class="breadcrumb"><a href="#/">Projects</a> / Admin</div>
       <div class="spacer"></div>
@@ -1088,11 +1688,13 @@ async function renderAdminUsers(app) {
 
 function adminUserRow(u) {
   const date = u.created_at ? new Date(u.created_at).toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' }) : '';
+  const sub = u.subscription_status || 'free';
+  const subClass = sub && sub !== 'free' ? 'active' : 'completed';
   return `<tr data-user-id="${esc(u.id)}">
     <td>${esc(u.name || '—')}</td>
     <td style="color:var(--text-dim)">${esc(u.email)}</td>
     <td>${esc(u.company || '—')}</td>
-    <td><span class="status-badge active" style="font-size:10px">${esc(u.subscription_status || 'free')}</span></td>
+    <td><span class="status-badge ${subClass}" style="font-size:10px">${esc(sub)}</span></td>
     <td>${u.project_count || 0}</td>
     <td style="color:var(--text-dim)">${date}</td>
     <td class="actions">

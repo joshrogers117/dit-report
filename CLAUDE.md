@@ -38,7 +38,7 @@ grep database_id wrangler.toml
 - Clerk publishable keys and FAPI URLs are selected dynamically in `app.html` and `login.html` based on `location.hostname`
 - API middleware (`functions/api/_middleware.js`) validates Bearer tokens via `verifyToken` with `CLERK_JWT_KEY`
 - Public (unauthenticated) API paths: `/api/health`, `/api/status`, `/api/webhooks/clerk`, `/api/r/*` (shared standalone report links)
-- Admin user ID is defined in `lib/auth-constants.js`; admins can impersonate users via `x-impersonate-user` header
+- Admin user IDs are defined in `lib/auth-constants.js` (`ADMIN_USER_IDS` — one per Clerk instance, since dev and production instances issue different IDs for the same person); admins can impersonate users via `x-impersonate-user` header
 - New users are auto-provisioned in the DB on first request and seeded with a demo project (`lib/demo-project.js`)
 
 ## Project Structure
@@ -55,9 +55,9 @@ grep database_id wrangler.toml
 - `lib/timecode.js` — Timecode math utilities (parse, add, sum HH:MM:SS:FF)
 - `lib/db-helpers.js` — Shared DB queries (getFullProject)
 - `lib/demo-project.js` — Demo project seeder for new users
-- `lib/auth-constants.js` — Admin user ID constant
+- `lib/auth-constants.js` — Admin user IDs (per Clerk instance)
 - `schema.sql` — Database schema reference
-- `migrations/` — D1 migration files (`0002_remove_breaks_add_features.sql` removes break/frames data from `rolls` and adds `camera_id`/`checksum_type`/`share_token` — apply with `wrangler d1 migrations apply` to both dev and prod)
+- `migrations/` — D1 migration files. Both 0001 and 0002 are applied to the dev and prod databases (2026-08-11). Convention: the API's boot-time `ensureDB()` owns `ADD COLUMN`s (runs before migrations, since deploys precede `wrangler d1 migrations apply`); migration files contain only removals/transforms. New-column work goes in `ensureDB()`'s fallback block AND the bootstrap `CREATE TABLE`s AND `schema.sql`.
 
 ## Security Notes
 

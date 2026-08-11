@@ -2,8 +2,10 @@
 
 ## Environments
 
-- **Production:** `dit.traderjosh.com` (main branch)
+- **Production:** `dit.ridgestudios.com` (main branch; migrating from `dit.traderjosh.com`, which remains mapped during the transition)
 - **Dev:** `dit.dev.traderjosh.com` (dev branch)
+
+The Clerk production instance is domain-bound: `app.html`/`login.html` hold a per-hostname map of publishable keys + frontend-API hosts (`CLERK_PROD`). Only the hostname whose domain is configured as the Clerk production domain will authenticate; the other entry exists so the cutover can happen without a code deploy. After the old domain is retired, remove its map entry and preconnect.
 
 ## Branch & Database Isolation
 

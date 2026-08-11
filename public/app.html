@@ -21,21 +21,27 @@
 <meta name="twitter:description" content="Track and report camera offloads, benchmarks, and shoot day data for film productions.">
 <meta name="twitter:image" content="/og-image.png">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="preconnect" href="https://clerk.dit.ridgestudios.com" crossorigin>
 <link rel="preconnect" href="https://clerk.dit.traderjosh.com" crossorigin>
 <link rel="preconnect" href="https://prompt-collie-58.clerk.accounts.dev" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Space+Grotesk:wght@600&display=swap" rel="stylesheet">
 <script>
-  const isProd = location.hostname === 'dit.traderjosh.com';
+  // Production Clerk instances are domain-bound; keys encode the frontend-API host.
+  const CLERK_PROD = {
+    'dit.ridgestudios.com': { pk: 'pk_live_Y2xlcmsuZGl0LnJpZGdlc3R1ZGlvcy5jb20k', fapi: 'clerk.dit.ridgestudios.com' },
+    'dit.traderjosh.com': { pk: 'pk_live_Y2xlcmsuZGl0LnRyYWRlcmpvc2guY29tJA', fapi: 'clerk.dit.traderjosh.com' },
+  };
+  const clerkProd = CLERK_PROD[location.hostname];
   const s = document.createElement('script');
   s.async = true;
   s.crossOrigin = 'anonymous';
-  s.dataset.clerkPublishableKey = isProd
-    ? 'pk_live_Y2xlcmsuZGl0LnRyYWRlcmpvc2guY29tJA'
+  s.dataset.clerkPublishableKey = clerkProd
+    ? clerkProd.pk
     : 'pk_test_cHJvbXB0LWNvbGxpZS01OC5jbGVyay5hY2NvdW50cy5kZXYk';
-  s.src = isProd
-    ? 'https://clerk.dit.traderjosh.com/npm/@clerk/clerk-js@5/dist/clerk.browser.js'
+  s.src = clerkProd
+    ? `https://${clerkProd.fapi}/npm/@clerk/clerk-js@5/dist/clerk.browser.js`
     : 'https://prompt-collie-58.clerk.accounts.dev/npm/@clerk/clerk-js@5/dist/clerk.browser.js';
   document.head.appendChild(s);
 </script>

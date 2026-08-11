@@ -3,47 +3,71 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sign In — DIT Report</title>
+<title>Sign in — DIT Report</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Space+Grotesk:wght@600&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #0e1117; --surface: #161b22; --surface2: #1c2333; --border: #30363d;
-  --text: #e6edf3; --text-dim: #8b949e; --accent: #e8762b; --radius: 10px;
+  --basalt: #121410; --parchment: #EBE2CC; --alpenglow: #D1573F;
+  --snow: #FFFFFF; --cloud: #F4F2EC; --graphite: #0A0A0A; --smoke: #6F6E6A;
+  --border: color-mix(in oklab, var(--graphite) 14%, transparent);
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
-  color: var(--text); min-height: 100vh;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  background: var(--bg);
-  background-image:
-    radial-gradient(ellipse at 50% 30%, #1a1f2e 0%, var(--bg) 70%),
-    radial-gradient(circle, rgba(255,255,255,.03) 1px, transparent 1px);
-  background-size: 100% 100%, 24px 24px;
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  background: var(--snow); color: var(--graphite);
+  font-size: 15px; line-height: 1.55; letter-spacing: -0.005em;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
 }
-.login-brand {
-  text-align: center; margin-bottom: 32px;
+.layout { display: grid; grid-template-columns: 1fr; min-height: 100vh; }
+.wordmark {
+  font-family: 'Space Grotesk', 'Geist', system-ui, sans-serif;
+  font-weight: 600; letter-spacing: -0.045em; line-height: 1;
 }
-.login-brand svg {
-  width: 80px; height: 80px; margin-bottom: 16px;
-  filter: drop-shadow(0 0 24px rgba(232, 118, 43, 0.15));
+
+/* Brand panel — basalt identity anchor */
+.brand-panel {
+  display: none; background: var(--basalt); color: var(--parchment);
+  flex-direction: column; justify-content: space-between;
+  padding: 40px 48px; min-height: 100vh;
 }
-.login-brand h1 {
-  font-size: 24px; font-weight: 700; margin-bottom: 8px;
+.brand-panel .wordmark { font-size: 30px; }
+.brand-panel .pitch { max-width: 26rem; }
+.brand-panel .eyebrow {
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--alpenglow);
 }
-.login-brand h1 span { color: var(--accent); }
-.tagline {
-  color: var(--text-dim); font-size: 14px; max-width: 320px; line-height: 1.5;
+.brand-panel h1 {
+  margin-top: 16px; font-size: clamp(36px, 3.4vw, 48px); font-weight: 600;
+  line-height: 1.02; letter-spacing: -0.035em;
 }
-#sign-in { min-height: 300px; }
-.loading {
-  color: var(--text-dim); font-size: 14px; text-align: center; padding-top: 40px;
+.brand-panel .pitch p {
+  margin-top: 24px; font-size: 17px; line-height: 1.45;
+  color: color-mix(in oklab, var(--parchment) 76%, transparent);
 }
-footer {
-  position: fixed; bottom: 0; width: 100%;
-  padding: 16px; text-align: center;
-  color: var(--text-dim); font-size: 12px;
-  border-top: 1px solid var(--border);
+
+/* Sign-in panel */
+.signin-panel {
+  display: flex; flex-direction: column; align-items: center;
+  min-height: 100vh; padding: 48px 24px 24px;
+}
+.signin-wrap { margin: auto; width: 100%; max-width: 26rem; display: flex; flex-direction: column; align-items: center; gap: 32px; }
+.signin-wrap .wordmark { font-size: 30px; color: var(--graphite); }
+#sign-in { min-height: 300px; width: 100%; display: flex; justify-content: center; }
+.loading { color: var(--smoke); font-size: 14px; text-align: center; padding-top: 40px; }
+.foot { color: var(--smoke); font-size: 12px; padding-top: 24px; }
+
+@media (min-width: 1024px) {
+  .layout { grid-template-columns: minmax(320px, 0.62fr) minmax(420px, 1fr); }
+  .brand-panel { display: flex; }
+  .signin-wrap .wordmark { display: none; }
+  .signin-panel { padding: 48px 48px 24px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 </style>
 <script>
@@ -61,19 +85,24 @@ footer {
 </script>
 </head>
 <body>
-<div class="login-brand">
-  <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" width="80" height="80">
-    <rect width="512" height="512" rx="64" fill="#0a0a0a"/>
-    <text x="256" y="280" text-anchor="middle" font-family="SF Mono, Menlo, Consolas, monospace" font-weight="800" font-size="200" fill="#ffffff">D</text>
-    <rect x="80" y="340" width="352" height="48" rx="8" fill="#1a1a1a" stroke="#333" stroke-width="3"/>
-    <text x="256" y="376" text-anchor="middle" font-family="SF Mono, Menlo, Consolas, monospace" font-weight="500" font-size="32" fill="#f97316">01:26:15</text>
-  </svg>
-  <h1>DIT Report <span>Manager</span></h1>
-  <p class="tagline">Professional camera offload tracking for film &amp; television.</p>
-</div>
-<div id="sign-in"><div class="loading">Loading...</div></div>
+<div class="layout">
+  <section class="brand-panel">
+    <span class="wordmark">DIT report</span>
+    <div class="pitch">
+      <p class="eyebrow">On-set data management</p>
+      <h1>Every card, accounted for.</h1>
+      <p>Offload logs, drive benchmarks, and shoot-day reports in one place.</p>
+    </div>
+  </section>
 
-<footer>&copy; 2026 DIT Report Manager</footer>
+  <section class="signin-panel">
+    <div class="signin-wrap">
+      <span class="wordmark">DIT report</span>
+      <div id="sign-in"><div class="loading">Loading&hellip;</div></div>
+    </div>
+    <p class="foot">&copy; 2026 DIT Report</p>
+  </section>
+</div>
 
 <script>
 window.addEventListener('load', async () => {
@@ -86,20 +115,20 @@ window.addEventListener('load', async () => {
   window.Clerk.mountSignIn(document.getElementById('sign-in'), {
     appearance: {
       variables: {
-        colorPrimary: '#e8762b',
-        colorBackground: '#161b22',
-        colorText: '#e6edf3',
-        colorInputBackground: '#1c2333',
-        colorInputText: '#e6edf3',
-        colorNeutral: '#e6edf3',
-        borderRadius: '10px',
-        fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif",
+        colorPrimary: '#0A0A0A',
+        colorBackground: '#FFFFFF',
+        colorText: '#0A0A0A',
+        colorInputBackground: '#FFFFFF',
+        colorInputText: '#0A0A0A',
+        colorNeutral: '#0A0A0A',
+        borderRadius: '8px',
+        fontFamily: "'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
       },
       elements: {
         card: {
-          backgroundColor: '#161b22',
-          border: '1px solid #30363d',
-          boxShadow: '0 2px 12px rgba(0,0,0,.4)',
+          backgroundColor: '#FFFFFF',
+          border: '1px solid rgba(10,10,10,.14)',
+          boxShadow: '0 12px 32px rgba(18,20,16,.10)',
         },
         socialButtons: {
           display: 'flex',
@@ -107,20 +136,23 @@ window.addEventListener('load', async () => {
           gap: '8px',
         },
         socialButtonsBlockButton: {
-          backgroundColor: '#1c2333',
-          border: '1px solid #30363d',
-          color: '#e6edf3',
-          '&:hover': { backgroundColor: '#2a3040', borderColor: '#e8762b' },
+          backgroundColor: '#FFFFFF',
+          border: '1px solid rgba(10,10,10,.14)',
+          color: '#0A0A0A',
+          borderRadius: '9999px',
+          '&:hover': { backgroundColor: '#F4F2EC', borderColor: 'rgba(10,10,10,.32)' },
         },
         formButtonPrimary: {
-          backgroundColor: '#e8762b',
-          '&:hover': { backgroundColor: '#d06820' },
+          backgroundColor: '#0A0A0A',
+          color: '#FFFFFF',
+          borderRadius: '9999px',
+          '&:hover': { backgroundColor: '#2A2A2A' },
         },
         footerActionLink: {
-          color: '#e8762b',
+          color: '#0A0A0A',
         },
         dividerLine: {
-          borderColor: '#30363d',
+          borderColor: 'rgba(10,10,10,.14)',
         },
       },
     },

@@ -385,6 +385,7 @@ window.addEventListener('load', async () => {
   }});
   loadPersistedPending();
   if (pending.size) retryPending();
+  await replayPersistedDeletes();
   render();
 });
 window.addEventListener('online', retryPending);
@@ -1523,20 +1524,64 @@ function openCsvImport(dayId) {
 }
 
 // ===== Undoable delete =====
-const pendingDeletes = new Map(); // key `${entity}:${id}` -> timeoutId
+// The DELETE is deferred for the undo grace period, so it must survive the
+// page dying mid-window: every pending delete is persisted, committed via
+// keepalive on tab-hide, and replayed on next load if neither happened.
+const pendingDeletes = new Map(); // key `${entity}:${id}` -> { timer, apiPath }
+
+function persistDeletes() {
+  try {
+    const all = [...pendingDeletes.values()].map(v => ({ apiPath: v.apiPath }));
+    if (!all.length) localStorage.removeItem('dit-pending-deletes');
+    else localStorage.setItem('dit-pending-deletes', JSON.stringify(all));
+  } catch {}
+}
+
+async function commitDelete(key) {
+  const entry = pendingDeletes.get(key);
+  if (!entry) return;
+  pendingDeletes.delete(key);
+  persistDeletes();
+  try { await api(entry.apiPath, { method: 'DELETE' }); }
+  catch (err) {
+    console.error('Delete failed', err);
+    const status = err && err.status;
+    // Requeue on network/server failure; 4xx means it's already gone or not ours
+    if (!(status && status >= 400 && status < 500)) {
+      pendingDeletes.set(key, { timer: null, apiPath: entry.apiPath });
+      persistDeletes();
+    }
+  }
+}
+
+function retryPendingDeletes() {
+  for (const [key, e] of pendingDeletes) if (!e.timer) commitDelete(key);
+}
+
+async function replayPersistedDeletes() {
+  try {
+    const raw = localStorage.getItem('dit-pending-deletes');
+    if (!raw) return;
+    localStorage.removeItem('dit-pending-deletes');
+    for (const item of JSON.parse(raw)) {
+      try { await api(item.apiPath, { method: 'DELETE' }); }
+      catch (err) { console.error('Replay delete failed', err); } // 404 = already committed
+    }
+  } catch {}
+}
 
 function optimisticDelete(entity, id, apiPath) {
   const key = `${entity}:${id}`;
-  clearTimeout(pendingDeletes.get(key));
-  const timer = setTimeout(async () => {
-    pendingDeletes.delete(key);
-    try { await api(apiPath, { method: 'DELETE' }); }
-    catch (err) { console.error('Delete failed', err); }
-  }, 6000);
-  pendingDeletes.set(key, timer);
+  const prev = pendingDeletes.get(key);
+  if (prev) clearTimeout(prev.timer);
+  const timer = setTimeout(() => commitDelete(key), 6000);
+  pendingDeletes.set(key, { timer, apiPath });
+  persistDeletes();
   toastUndo('Deleted', () => {
-    clearTimeout(pendingDeletes.get(key));
+    const e = pendingDeletes.get(key);
+    if (e) clearTimeout(e.timer);
     pendingDeletes.delete(key);
+    persistDeletes();
     render();
   });
 }
@@ -1722,6 +1767,7 @@ function loadPersistedPending() {
 function retryPending() {
   const groups = new Set([...pending.keys()].map(k => k.split(':').slice(0, 2).join(':')));
   groups.forEach(g => { const [entity, id] = g.split(':'); flushEntity(entity, id); });
+  retryPendingDeletes();
 }
 
 // Last-chance flush when the tab hides or closes: keepalive PUTs with the most
@@ -1729,7 +1775,9 @@ function retryPending() {
 // Entries stay persisted — if a beacon also lands, the next-load replay writes
 // identical values, so the redundancy is harmless.
 function flushAllKeepalive() {
-  if (!pending.size || !lastToken) return;
+  if ((!pending.size && !pendingDeletes.size) || !lastToken) return;
+  const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${lastToken}` };
+  if (impersonatingUserId) headers['x-impersonate-user'] = impersonatingUserId;
   const groups = new Map();
   for (const v of pending.values()) {
     const g = `${v.entity}:${v.id}`;
@@ -1738,9 +1786,13 @@ function flushAllKeepalive() {
   }
   for (const [g, body] of groups) {
     const [entity, id] = g.split(':');
-    const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${lastToken}` };
-    if (impersonatingUserId) headers['x-impersonate-user'] = impersonatingUserId;
     try { fetch(API + entityBase[entity] + id, { method: 'PUT', keepalive: true, headers, body: JSON.stringify(body) }); } catch {}
+  }
+  // Commit pending deletes — the page is going away, so the undo window is over.
+  // Entries stay persisted; the next-load replay is idempotent (404 = done).
+  for (const [key, e] of pendingDeletes) {
+    if (e.timer) { clearTimeout(e.timer); pendingDeletes.set(key, { timer: null, apiPath: e.apiPath }); }
+    try { fetch(API + e.apiPath, { method: 'DELETE', keepalive: true, headers }); } catch {}
   }
 }
 window.addEventListener('pagehide', flushAllKeepalive);

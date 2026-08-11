@@ -303,7 +303,6 @@ html.dark .admin-camera-card .brand-logo { filter: none; opacity: .14; }
 .sync-status .sync-dot { width: 6px; height: 6px; border-radius: 50%; background: color-mix(in oklab, var(--parchment) 28%, transparent); flex-shrink: 0; transition: background .2s var(--ease); }
 .sync-status.saving .sync-dot { background: var(--smoke); }
 .sync-status.saved .sync-dot { background: var(--leaf); }
-.sync-status.offline .sync-dot { background: var(--ember); }
 .sync-status .sync-label { transition: opacity .3s var(--ease); white-space: nowrap; }
 .sync-status.fade .sync-label { opacity: 0; }
 .admin-link { color: var(--parchment); font-size: 13px; text-decoration: none; padding: 5px 12px; border-radius: var(--r-pill); border: 1px solid color-mix(in oklab, var(--parchment) 26%, transparent); display: inline-flex; align-items: center; gap: 6px; }
@@ -392,8 +391,11 @@ window.addEventListener('online', retryPending);
 setInterval(retryPending, 30000);
 
 // ===== Utilities =====
+let lastToken = null; // most recent auth token, for the keepalive unload flush
+
 async function api(path, opts = {}) {
   const token = await window.Clerk.session.getToken();
+  lastToken = token;
   const headers = {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${token}`,
@@ -602,6 +604,7 @@ function impersonateBannerHTML() {
 }
 
 async function signOut() {
+  flushAllKeepalive();
   await window.Clerk.signOut();
   window.location.href = '/login.html';
 }
@@ -1614,9 +1617,18 @@ function saveContext(target) {
   return null;
 }
 
+// Every queued keystroke is persisted immediately, stays persisted while its
+// PUT is in flight, and is only removed after the server confirms. One PUT per
+// row at a time (a follow-up flush drains anything queued mid-flight), so
+// out-of-order responses can't land a stale value.
+const inFlight = new Map();   // key -> entry, awaiting server confirmation
+const flushing = new Set();   // `${entity}:${id}` groups with a PUT in flight
+
 function queueSave(entity, id, field, value) {
   const key = `${entity}:${id}:${field}`;
-  pending.set(key, { entity, id, field, value });
+  pending.set(key, { entity, id, field, value, t: Date.now() });
+  persistQueue();
+  setSyncStatus('saving');
   clearTimeout(saveTimers.get(key));
   saveTimers.set(key, setTimeout(() => flushEntity(entity, id), 400));
 }
@@ -1630,45 +1642,61 @@ function flushKey(key) {
 }
 
 async function flushEntity(entity, id) {
-  const prefix = `${entity}:${id}:`;
+  const group = `${entity}:${id}`;
+  if (flushing.has(group)) return; // the in-flight PUT re-flushes on completion
+  const prefix = group + ':';
   const entries = [...pending].filter(([k]) => k.startsWith(prefix));
-  if (!entries.length) return;
-  entries.forEach(([k]) => { clearTimeout(saveTimers.get(k)); saveTimers.delete(k); pending.delete(k); });
-  persistPending();
+  if (!entries.length) { if (!pending.size && !inFlight.size) setSyncStatus('saved'); return; }
+  flushing.add(group);
+  entries.forEach(([k, v]) => { clearTimeout(saveTimers.get(k)); saveTimers.delete(k); pending.delete(k); inFlight.set(k, v); });
+  persistQueue();
   setSyncStatus('saving');
   const body = {};
   entries.forEach(([, v]) => { body[v.field] = v.value; });
+  let ok = false;
   try {
     await api(entityBase[entity] + id, { method: 'PUT', body });
-    setSyncStatus('saved');
+    ok = true;
+    entries.forEach(([k]) => inFlight.delete(k));
+    persistQueue();
   } catch (err) {
     console.error('Save failed', err);
+    entries.forEach(([k]) => inFlight.delete(k));
     const status = err && err.status;
-    // Permanent rejections (row deleted, not ours, bad value) can never succeed —
-    // drop them instead of poisoning the retry queue. Network errors, 5xx, 401
-    // (token refresh), 408, and 429 stay queued for retry.
-    if (status && status >= 400 && status < 500 && status !== 401 && status !== 408 && status !== 429) {
-      setSyncStatus(pending.size ? 'offline' : 'saved');
-      return;
-    }
-    entries.forEach(([k, v]) => pending.set(k, v));
-    persistPending();
-    setSyncStatus('offline');
+    // Permanent rejections (row deleted, not ours, bad value) can never succeed;
+    // drop them. Network errors, 5xx, 401 (token refresh), 408, and 429 requeue —
+    // unless newer keystrokes for the same field already replaced the value.
+    const permanent = status && status >= 400 && status < 500 && status !== 401 && status !== 408 && status !== 429;
+    if (!permanent) entries.forEach(([k, v]) => { if (!pending.has(k)) pending.set(k, v); });
+    persistQueue();
+  } finally {
+    flushing.delete(group);
+    // Drain keystrokes that arrived mid-flight — but only after a SUCCESSFUL
+    // flush. After a failure, requeued entries wait for the 30s retry cadence;
+    // an immediate re-flush here would loop hot against a persistent failure.
+    if (ok && [...pending.keys()].some(k => k.startsWith(prefix))) flushEntity(entity, id);
+    else if (!pending.size && !inFlight.size) setSyncStatus('saved');
   }
 }
 
-function persistPending() {
+function persistQueue() {
   try {
-    if (pending.size === 0) localStorage.removeItem('dit-pending-saves');
-    else localStorage.setItem('dit-pending-saves', JSON.stringify([...pending.values()]));
+    const all = [...pending.values(), ...inFlight.values()];
+    if (!all.length) localStorage.removeItem('dit-pending-saves');
+    else localStorage.setItem('dit-pending-saves', JSON.stringify(all));
   } catch {}
 }
+
+const MAX_PENDING_AGE = 7 * 24 * 3600 * 1000;
 
 function loadPersistedPending() {
   try {
     const raw = localStorage.getItem('dit-pending-saves');
     if (!raw) return;
-    for (const item of JSON.parse(raw)) pending.set(`${item.entity}:${item.id}:${item.field}`, item);
+    for (const item of JSON.parse(raw)) {
+      if (item.t && Date.now() - item.t > MAX_PENDING_AGE) continue;
+      pending.set(`${item.entity}:${item.id}:${item.field}`, item);
+    }
   } catch {}
 }
 
@@ -1677,6 +1705,28 @@ function retryPending() {
   groups.forEach(g => { const [entity, id] = g.split(':'); flushEntity(entity, id); });
 }
 
+// Last-chance flush when the tab hides or closes: keepalive PUTs with the most
+// recently issued token (Clerk tokens outlive the ~60s window this relies on).
+// Entries stay persisted — if a beacon also lands, the next-load replay writes
+// identical values, so the redundancy is harmless.
+function flushAllKeepalive() {
+  if (!pending.size || !lastToken) return;
+  const groups = new Map();
+  for (const v of pending.values()) {
+    const g = `${v.entity}:${v.id}`;
+    if (!groups.has(g)) groups.set(g, {});
+    groups.get(g)[v.field] = v.value;
+  }
+  for (const [g, body] of groups) {
+    const [entity, id] = g.split(':');
+    const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${lastToken}` };
+    if (impersonatingUserId) headers['x-impersonate-user'] = impersonatingUserId;
+    try { fetch(API + entityBase[entity] + id, { method: 'PUT', keepalive: true, headers, body: JSON.stringify(body) }); } catch {}
+  }
+}
+window.addEventListener('pagehide', flushAllKeepalive);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushAllKeepalive(); });
+
 let syncState = null;
 let syncFadeTimer;
 function setSyncStatus(state) { syncState = state; paintSyncStatus(); }
@@ -1684,13 +1734,13 @@ function paintSyncStatus() {
   const el = document.getElementById('syncStatus');
   if (!el) return;
   clearTimeout(syncFadeTimer);
-  el.classList.remove('saving', 'saved', 'offline', 'fade');
+  el.classList.remove('saving', 'saved', 'fade');
   const label = el.querySelector('.sync-label');
   if (syncState === 'saving') { el.classList.add('saving'); label.textContent = 'Saving…'; }
   else if (syncState === 'saved') {
     el.classList.add('saved'); label.textContent = 'Saved';
     syncFadeTimer = setTimeout(() => el.classList.add('fade'), 2000);
-  } else if (syncState === 'offline') { el.classList.add('offline'); label.textContent = 'Offline — will retry'; }
+  }
   else label.textContent = '';
 }
 

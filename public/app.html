@@ -1285,17 +1285,26 @@ function secondsToTC(secs) {
   return `${pad(Math.floor(secs / 3600))}:${pad(Math.floor(secs / 60) % 60)}:${pad(secs % 60)}:00`;
 }
 
+// Frame count -> HH:MM:SS:FF in the camera's timebase (23.98 rounds to 24, etc.)
+function framesToTC(frames, base) {
+  const pad = n => String(n).padStart(2, '0');
+  const ff = frames % base;
+  const secs = Math.floor(frames / base);
+  return `${pad(Math.floor(secs / 3600))}:${pad(Math.floor(secs / 60) % 60)}:${pad(secs % 60)}:${pad(ff)}`;
+}
+
 function aggregateClipReport(headers, dataRows) {
   const idx = {};
   headers.forEach((h, i) => { idx[h.trim().toLowerCase()] = i; });
   const gi = idx['group'], ni = idx['name'], pi = idx['path'], si = idx['size'], sti = idx['status'], vdi = idx['video duration'];
+  const tfi = idx['total frames'], fri = idx['frame rate'];
   // Collapse the copies: each Group id is one file/folder, listed once per destination
   const groups = new Map();
   for (const r of dataRows) {
     const g = r[gi];
     if (g === undefined || g === '') continue;
     let e = groups.get(g);
-    if (!e) { e = { name: r[ni] || '', srcPath: '', gb: 0, dur: '', verified: 0 }; groups.set(g, e); }
+    if (!e) { e = { name: r[ni] || '', srcPath: '', gb: 0, dur: '', verified: 0, frames: 0, fps: 0 }; groups.set(g, e); }
     const status = (r[sti] || '').trim().toLowerCase();
     const sz = parseSizeToGb(r[si]);
     if (status === 'verified') e.verified++;
@@ -1303,6 +1312,10 @@ function aggregateClipReport(headers, dataRows) {
     else if (!e.gb && sz) e.gb = sz;
     const vd = vdi !== undefined ? (r[vdi] || '').trim() : '';
     if (vd) e.dur = vd;
+    const tf = tfi !== undefined ? parseInt(String(r[tfi] || '').replace(/,/g, ''), 10) : NaN;
+    if (!isNaN(tf) && tf > 0) e.frames = tf;
+    const fr = fri !== undefined ? parseFloat(r[fri]) : NaN;
+    if (!isNaN(fr) && fr > 0) e.fps = fr;
   }
   // Media clips are the entities with a video duration; group them by card volume
   const rootName = groups.get('0')?.name || '';
@@ -1312,15 +1325,21 @@ function aggregateClipReport(headers, dataRows) {
     const m = e.srcPath.match(/^\/Volumes\/([^\/]+)/);
     const card = m ? m[1] : (rootName || 'CARD');
     let c = cards.get(card);
-    if (!c) { c = { roll_name: card, gb: 0, secs: 0, clips: 0, minVerified: Infinity }; cards.set(card, c); }
+    if (!c) { c = { roll_name: card, gb: 0, secs: 0, frames: 0, framesComplete: true, bases: new Set(), clips: 0, minVerified: Infinity }; cards.set(card, c); }
     c.gb += e.gb;
     c.secs += parseClockToSeconds(e.dur);
+    if (e.frames && e.fps) { c.frames += e.frames; c.bases.add(Math.round(e.fps)); }
+    else c.framesComplete = false;
     c.clips++;
     c.minVerified = Math.min(c.minVerified, e.verified);
   }
   return [...cards.values()].map(c => ({
     roll_name: c.roll_name, card_serial: '', gb: Math.round(c.gb * 100) / 100,
-    duration_tc: secondsToTC(c.secs),
+    // Frame-accurate when every clip reports frames in one shared timebase;
+    // whole-second fallback otherwise (mixed frame rates don't sum to one TC).
+    duration_tc: c.framesComplete && c.frames && c.bases.size === 1
+      ? framesToTC(c.frames, [...c.bases][0])
+      : secondsToTC(c.secs),
     master: c.minVerified >= 1 ? 1 : 0, backup: c.minVerified >= 2 ? 1 : 0,
     notes: '', clips: c.clips,
   }));

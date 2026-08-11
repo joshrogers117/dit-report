@@ -1,5 +1,5 @@
 import { verifyToken } from '@clerk/backend';
-import { ADMIN_USER_ID } from '../../lib/auth-constants.js';
+import { ADMIN_USER_IDS } from '../../lib/auth-constants.js';
 import { seedDemoProject } from '../../lib/demo-project.js';
 
 // Per-isolate cache of known user IDs (avoids repeated D1 lookups)
@@ -53,13 +53,13 @@ export async function onRequest(context) {
 
   // Check for admin impersonation
   const impersonateHeader = request.headers.get('x-impersonate-user');
-  if (impersonateHeader && userId === ADMIN_USER_ID) {
+  if (impersonateHeader && ADMIN_USER_IDS.includes(userId)) {
     context.data.userId = impersonateHeader;
     context.data.isAdmin = true;
     context.data.realUserId = userId;
   } else {
     context.data.userId = userId;
-    context.data.isAdmin = userId === ADMIN_USER_ID;
+    context.data.isAdmin = ADMIN_USER_IDS.includes(userId);
   }
 
   // Auto-provision user if not in cache

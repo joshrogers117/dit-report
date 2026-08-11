@@ -31,6 +31,16 @@ async function verifyItemOwnership(db, table, itemId, userId) {
   ).bind(itemId, userId).first();
 }
 
+// Confirms every id in `ids` belongs to the given scope (e.g. day_id/project_id column) — used by reorder endpoints
+async function verifyIdsInScope(db, table, scopeCol, scopeId, ids) {
+  if (!Array.isArray(ids) || ids.length === 0) return true;
+  const placeholders = ids.map(() => '?').join(',');
+  const { results } = await db.prepare(
+    `SELECT id FROM ${table} WHERE ${scopeCol} = ? AND id IN (${placeholders})`
+  ).bind(scopeId, ...ids).all();
+  return results.length === ids.length;
+}
+
 // ===== AUTO-INIT: schema on first request =====
 
 let dbInitialized = false;
@@ -66,6 +76,8 @@ async function ensureDB(db) {
       dit_email TEXT DEFAULT '',
       dit_phone TEXT DEFAULT '',
       archived INTEGER DEFAULT 0,
+      checksum_type TEXT DEFAULT '',
+      share_token TEXT,
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now'))
     )`),
@@ -108,11 +120,10 @@ async function ensureDB(db) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       day_id INTEGER NOT NULL REFERENCES shoot_days(id) ON DELETE CASCADE,
       roll_name TEXT NOT NULL DEFAULT '',
-      is_break INTEGER DEFAULT 0,
       card_serial TEXT DEFAULT '',
       gb REAL DEFAULT 0,
       duration_tc TEXT DEFAULT '00:00:00:00',
-      frames INTEGER DEFAULT 0,
+      camera_id INTEGER,
       master INTEGER DEFAULT 0,
       backup INTEGER DEFAULT 0,
       notes TEXT DEFAULT '',
@@ -125,6 +136,9 @@ async function ensureDB(db) {
   try { await db.prepare('ALTER TABLE cameras ADD COLUMN source_type TEXT DEFAULT \'camera\'').run(); } catch(e) { /* column already exists */ }
   try { await db.prepare('ALTER TABLE cameras ADD COLUMN gamma TEXT DEFAULT \'\'').run(); } catch(e) { /* column already exists */ }
   try { await db.prepare('ALTER TABLE projects ADD COLUMN user_id TEXT NOT NULL DEFAULT \'\'').run(); } catch(e) { /* column already exists */ }
+  try { await db.prepare('ALTER TABLE rolls ADD COLUMN camera_id INTEGER').run(); } catch(e) { /* column already exists */ }
+  try { await db.prepare('ALTER TABLE projects ADD COLUMN checksum_type TEXT DEFAULT \'\'').run(); } catch(e) { /* column already exists */ }
+  try { await db.prepare('ALTER TABLE projects ADD COLUMN share_token TEXT').run(); } catch(e) { /* column already exists */ }
 
   // Index for user_id lookups
   try { await db.prepare('CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id)').run(); } catch(e) { /* already exists */ }
@@ -188,7 +202,7 @@ router.put('/projects/:id', async (request, env) => {
   if (!owned) return Response.json({ error: 'Project not found' }, { status: 404 });
 
   const body = await request.json();
-  const fields = ['title', 'production_company', 'client', 'director', 'producer', 'dp', 'first_ac', 'dit_name', 'dit_email', 'dit_phone', 'archived'];
+  const fields = ['title', 'production_company', 'client', 'director', 'producer', 'dp', 'first_ac', 'dit_name', 'dit_email', 'dit_phone', 'archived', 'checksum_type'];
   const updates = [];
   const values = [];
   for (const f of fields) {
@@ -209,6 +223,28 @@ router.delete('/projects/:id', async (request, env) => {
   const owned = await verifyProjectOwnership(env.DB, request.params.id, request.userId);
   if (!owned) return Response.json({ error: 'Project not found' }, { status: 404 });
   await env.DB.prepare('DELETE FROM projects WHERE id = ?').bind(request.params.id).run();
+  return Response.json({ ok: true });
+});
+
+// Enable share link (generates a token if one doesn't already exist)
+router.post('/projects/:id/share', async (request, env) => {
+  const owned = await verifyProjectOwnership(env.DB, request.params.id, request.userId);
+  if (!owned) return Response.json({ error: 'Project not found' }, { status: 404 });
+
+  let token = owned.share_token;
+  if (!token) {
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    token = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+    await env.DB.prepare('UPDATE projects SET share_token = ? WHERE id = ?').bind(token, request.params.id).run();
+  }
+  return Response.json({ token });
+});
+
+// Disable share link
+router.delete('/projects/:id/share', async (request, env) => {
+  const owned = await verifyProjectOwnership(env.DB, request.params.id, request.userId);
+  if (!owned) return Response.json({ error: 'Project not found' }, { status: 404 });
+  await env.DB.prepare('UPDATE projects SET share_token = NULL WHERE id = ?').bind(request.params.id).run();
   return Response.json({ ok: true });
 });
 
@@ -299,6 +335,23 @@ router.post('/days/:id/clone', async (request, env) => {
   return Response.json({ id: newDayId });
 });
 
+// Reorder days
+router.put('/projects/:id/days/reorder', async (request, env) => {
+  const owned = await verifyProjectOwnership(env.DB, request.params.id, request.userId);
+  if (!owned) return Response.json({ error: 'Project not found' }, { status: 404 });
+
+  const body = await request.json();
+  const { ids } = body;
+  if (!Array.isArray(ids)) return Response.json({ error: 'ids must be an array' }, { status: 400 });
+  const ok = await verifyIdsInScope(env.DB, 'shoot_days', 'project_id', request.params.id, ids);
+  if (!ok) return Response.json({ error: 'Invalid ids' }, { status: 400 });
+  const stmts = ids.map((id, idx) =>
+    env.DB.prepare('UPDATE shoot_days SET sort_order = ? WHERE id = ?').bind(idx, id)
+  );
+  if (stmts.length > 0) await env.DB.batch(stmts);
+  return Response.json({ ok: true });
+});
+
 // ===== BENCHMARKS =====
 
 router.post('/days/:did/benchmarks', async (request, env) => {
@@ -335,6 +388,23 @@ router.delete('/benchmarks/:id', async (request, env) => {
   const item = await verifyItemOwnership(env.DB, 'benchmarks', request.params.id, request.userId);
   if (!item) return Response.json({ error: 'Not found' }, { status: 404 });
   await env.DB.prepare('DELETE FROM benchmarks WHERE id = ?').bind(request.params.id).run();
+  return Response.json({ ok: true });
+});
+
+// Reorder benchmarks
+router.put('/days/:did/benchmarks/reorder', async (request, env) => {
+  const day = await verifyDayOwnership(env.DB, request.params.did, request.userId);
+  if (!day) return Response.json({ error: 'Day not found' }, { status: 404 });
+
+  const body = await request.json();
+  const { ids } = body;
+  if (!Array.isArray(ids)) return Response.json({ error: 'ids must be an array' }, { status: 400 });
+  const ok = await verifyIdsInScope(env.DB, 'benchmarks', 'day_id', day.id, ids);
+  if (!ok) return Response.json({ error: 'Invalid ids' }, { status: 400 });
+  const stmts = ids.map((id, idx) =>
+    env.DB.prepare('UPDATE benchmarks SET sort_order = ? WHERE id = ?').bind(idx, id)
+  );
+  if (stmts.length > 0) await env.DB.batch(stmts);
   return Response.json({ ok: true });
 });
 
@@ -387,6 +457,23 @@ router.delete('/cameras/:id', async (request, env) => {
   return Response.json({ ok: true });
 });
 
+// Reorder cameras
+router.put('/days/:did/cameras/reorder', async (request, env) => {
+  const day = await verifyDayOwnership(env.DB, request.params.did, request.userId);
+  if (!day) return Response.json({ error: 'Day not found' }, { status: 404 });
+
+  const body = await request.json();
+  const { ids } = body;
+  if (!Array.isArray(ids)) return Response.json({ error: 'ids must be an array' }, { status: 400 });
+  const ok = await verifyIdsInScope(env.DB, 'cameras', 'day_id', day.id, ids);
+  if (!ok) return Response.json({ error: 'Invalid ids' }, { status: 400 });
+  const stmts = ids.map((id, idx) =>
+    env.DB.prepare('UPDATE cameras SET sort_order = ? WHERE id = ?').bind(idx, id)
+  );
+  if (stmts.length > 0) await env.DB.batch(stmts);
+  return Response.json({ ok: true });
+});
+
 // ===== ROLLS =====
 
 router.post('/days/:did/rolls', async (request, env) => {
@@ -397,8 +484,8 @@ router.post('/days/:did/rolls', async (request, env) => {
   const body = await request.json();
   const maxOrder = await env.DB.prepare('SELECT COALESCE(MAX(sort_order), 0) as m FROM rolls WHERE day_id = ?').bind(did).first();
   const result = await env.DB.prepare(
-    'INSERT INTO rolls (day_id, roll_name, is_break, card_serial, gb, duration_tc, frames, master, backup, notes, sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?)'
-  ).bind(did, body.roll_name || '', body.is_break ? 1 : 0, body.card_serial || '', body.gb || 0, body.duration_tc || '00:00:00:00', body.frames || 0, body.master ? 1 : 0, body.backup ? 1 : 0, body.notes || '', maxOrder.m + 1).run();
+    'INSERT INTO rolls (day_id, roll_name, card_serial, gb, duration_tc, camera_id, master, backup, notes, sort_order) VALUES (?,?,?,?,?,?,?,?,?,?)'
+  ).bind(did, body.roll_name || '', body.card_serial || '', body.gb || 0, body.duration_tc || '00:00:00:00', body.camera_id ?? null, body.master ? 1 : 0, body.backup ? 1 : 0, body.notes || '', maxOrder.m + 1).run();
   return Response.json({ id: result.meta.last_row_id });
 });
 
@@ -407,13 +494,13 @@ router.put('/rolls/:id', async (request, env) => {
   if (!item) return Response.json({ error: 'Not found' }, { status: 404 });
 
   const body = await request.json();
-  const fields = ['roll_name', 'is_break', 'card_serial', 'gb', 'duration_tc', 'frames', 'master', 'backup', 'notes', 'sort_order'];
+  const fields = ['roll_name', 'card_serial', 'gb', 'duration_tc', 'camera_id', 'master', 'backup', 'notes', 'sort_order'];
   const updates = [];
   const values = [];
   for (const f of fields) {
     if (body[f] !== undefined) {
       updates.push(`${f} = ?`);
-      values.push(f === 'is_break' || f === 'master' || f === 'backup' ? (body[f] ? 1 : 0) : body[f]);
+      values.push(f === 'master' || f === 'backup' ? (body[f] ? 1 : 0) : body[f]);
     }
   }
   if (updates.length === 0) return Response.json({ ok: true });
@@ -429,17 +516,38 @@ router.delete('/rolls/:id', async (request, env) => {
   return Response.json({ ok: true });
 });
 
+// Bulk-create rolls (e.g. CSV import), continuing sort_order
+router.post('/days/:did/rolls/bulk', async (request, env) => {
+  const day = await verifyDayOwnership(env.DB, request.params.did, request.userId);
+  if (!day) return Response.json({ error: 'Day not found' }, { status: 404 });
+
+  const did = request.params.did;
+  const body = await request.json();
+  const rolls = Array.isArray(body.rolls) ? body.rolls : [];
+  if (rolls.length === 0) return Response.json({ ids: [] });
+
+  const maxOrder = await env.DB.prepare('SELECT COALESCE(MAX(sort_order), 0) as m FROM rolls WHERE day_id = ?').bind(did).first();
+  const stmts = rolls.map((r, idx) =>
+    env.DB.prepare(
+      'INSERT INTO rolls (day_id, roll_name, card_serial, gb, duration_tc, camera_id, master, backup, notes, sort_order) VALUES (?,?,?,?,?,?,?,?,?,?)'
+    ).bind(did, r.roll_name || '', r.card_serial || '', r.gb || 0, r.duration_tc || '00:00:00:00', r.camera_id ?? null, r.master ? 1 : 0, r.backup ? 1 : 0, r.notes || '', maxOrder.m + idx + 1)
+  );
+  const results = await env.DB.batch(stmts);
+  return Response.json({ ids: results.map(r => r.meta.last_row_id) });
+});
+
 // Reorder rolls
 router.put('/days/:did/rolls/reorder', async (request, env) => {
   const day = await verifyDayOwnership(env.DB, request.params.did, request.userId);
   if (!day) return Response.json({ error: 'Day not found' }, { status: 404 });
 
   const body = await request.json();
-  const { order } = body;
-  if (!Array.isArray(order)) return Response.json({ error: 'order must be an array' }, { status: 400 });
-  const did = request.params.did;
-  const stmts = order.map((id, idx) =>
-    env.DB.prepare('UPDATE rolls SET sort_order = ? WHERE id = ? AND day_id = ?').bind(idx, id, did)
+  const { ids } = body;
+  if (!Array.isArray(ids)) return Response.json({ error: 'ids must be an array' }, { status: 400 });
+  const ok = await verifyIdsInScope(env.DB, 'rolls', 'day_id', day.id, ids);
+  if (!ok) return Response.json({ error: 'Invalid ids' }, { status: 400 });
+  const stmts = ids.map((id, idx) =>
+    env.DB.prepare('UPDATE rolls SET sort_order = ? WHERE id = ?').bind(idx, id)
   );
   if (stmts.length > 0) await env.DB.batch(stmts);
   return Response.json({ ok: true });
@@ -472,6 +580,8 @@ router.get('/projects/:id/export/pdf', async (request, env) => {
     const page = await browser.newPage();
     await page.setViewport({ width: 1122, height: 800 }); // A4 landscape width at 96dpi
     await page.setContent(html, { waitUntil: 'load' });
+    // Wait for webfonts (Geist) so the PDF doesn't snapshot fallback fonts
+    await page.evaluate(() => document.fonts.ready);
     // Measure actual content height for a single continuous page
     const contentHeight = await page.evaluate(() => document.body.scrollHeight);
     const pdf = await page.pdf({
@@ -492,6 +602,20 @@ router.get('/projects/:id/export/pdf', async (request, env) => {
     if (browser) await browser.close();
     return Response.json({ error: 'PDF generation failed: ' + err.message }, { status: 500 });
   }
+});
+
+// ===== PUBLIC SHARE REPORT =====
+
+// GET /api/r/:token — public standalone report, no auth required (see PUBLIC_PREFIXES in _middleware.js)
+router.get('/r/:token', async (request, env) => {
+  const row = await env.DB.prepare('SELECT id FROM projects WHERE share_token = ?').bind(request.params.token).first();
+  if (!row) return Response.json({ error: 'Not found' }, { status: 404 });
+  const project = await getFullProject(env.DB, row.id, null);
+  if (!project) return Response.json({ error: 'Not found' }, { status: 404 });
+  const html = renderStandaloneHTML(project);
+  return new Response(html, {
+    headers: { 'Content-Type': 'text/html', 'Cache-Control': 'no-store' }
+  });
 });
 
 // ===== ADMIN ROUTES =====
@@ -592,7 +716,11 @@ router.put('/me', async (request, env) => {
   await env.DB.prepare(
     "UPDATE users SET email = ?, name = ?, updated_at = datetime('now') WHERE id = ?"
   ).bind(email || '', name || '', request.userId).run();
-  return Response.json({ ok: true });
+  const user = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(request.userId).first();
+  return Response.json({
+    ...(user || { id: request.userId }),
+    isAdmin: request.isAdmin,
+  });
 });
 
 // ===== CLERK WEBHOOKS =====

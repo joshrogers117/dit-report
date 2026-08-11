@@ -7,13 +7,15 @@ const knownUsers = new Set();
 
 // Paths that don't require authentication
 const PUBLIC_PATHS = ['/api/health', '/api/status', '/api/webhooks/clerk'];
+// Path prefixes that don't require authentication
+const PUBLIC_PREFIXES = ['/api/r/'];
 
 export async function onRequest(context) {
   const { request, env, next } = context;
   const url = new URL(request.url);
 
   // Skip auth for public paths
-  if (PUBLIC_PATHS.includes(url.pathname)) {
+  if (PUBLIC_PATHS.includes(url.pathname) || PUBLIC_PREFIXES.some(p => url.pathname.startsWith(p))) {
     return next();
   }
 
@@ -80,5 +82,11 @@ export async function onRequest(context) {
     }
   }
 
-  return next();
+  const response = await next();
+  if (request.method === 'GET' && response.status === 200) {
+    const cached = new Response(response.body, response);
+    cached.headers.set('Cache-Control', 'private, max-age=5, stale-while-revalidate=10');
+    return cached;
+  }
+  return response;
 }

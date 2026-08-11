@@ -35,7 +35,7 @@ grep database_id wrangler.toml
 - **Clerk** handles authentication (JWT-based)
 - Clerk publishable keys and FAPI URLs are selected dynamically in `app.html` and `login.html` based on `location.hostname`
 - API middleware (`functions/api/_middleware.js`) validates Bearer tokens via `verifyToken` with `CLERK_JWT_KEY`
-- Public (unauthenticated) API paths: `/api/health`, `/api/status`, `/api/webhooks/clerk`
+- Public (unauthenticated) API paths: `/api/health`, `/api/status`, `/api/webhooks/clerk`, `/api/r/*` (shared standalone report links)
 - Admin user ID is defined in `lib/auth-constants.js`; admins can impersonate users via `x-impersonate-user` header
 - New users are auto-provisioned in the DB on first request and seeded with a demo project (`lib/demo-project.js`)
 
@@ -55,7 +55,7 @@ grep database_id wrangler.toml
 - `lib/demo-project.js` — Demo project seeder for new users
 - `lib/auth-constants.js` — Admin user ID constant
 - `schema.sql` — Database schema reference
-- `migrations/` — D1 migration files
+- `migrations/` — D1 migration files (`0002_remove_breaks_add_features.sql` removes break/frames data from `rolls` and adds `camera_id`/`checksum_type`/`share_token` — apply with `wrangler d1 migrations apply` to both dev and prod)
 
 ## Security Notes
 

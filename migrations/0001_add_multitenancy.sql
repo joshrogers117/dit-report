@@ -1,5 +1,8 @@
--- Add user_id to projects
-ALTER TABLE projects ADD COLUMN user_id TEXT NOT NULL DEFAULT '';
+-- Multitenancy. NOTE: this migration was written retroactively — live databases
+-- already received this schema from the API's boot-time ensureDB() (including
+-- projects.user_id, which is why there is no ALTER TABLE here; SQLite has no
+-- ADD COLUMN IF NOT EXISTS). Every statement below is idempotent so this file
+-- applies cleanly to both bootstrapped and fresh databases.
 
 -- Create users table
 CREATE TABLE IF NOT EXISTS users (

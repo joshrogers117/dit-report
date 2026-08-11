@@ -548,20 +548,28 @@ function getRoute() {
 window.addEventListener('hashchange', render);
 
 // ===== Render =====
+// Concurrent renders can resolve out of order (each fetches, then writes the
+// DOM); the sequence counter lets a superseded render abandon before it can
+// overwrite newer content with a stale snapshot.
+let renderSeq = 0;
+
 async function render() {
   if (!window.Clerk || !window.Clerk.user) return;
+  const seq = ++renderSeq;
+  const isCurrent = () => seq === renderSeq;
   const scrollY = window.scrollY;
   const route = getRoute();
   const app = document.getElementById('app');
   try {
-    if (route.page === 'admin-users') await renderAdminUsers(app);
-    else if (route.page === 'dashboard') await renderDashboard(app);
-    else if (route.page === 'project') await renderProject(app, route.projectId);
-    else if (route.page === 'day') await renderDay(app, route.projectId, route.dayId);
+    if (route.page === 'admin-users') await renderAdminUsers(app, isCurrent);
+    else if (route.page === 'dashboard') await renderDashboard(app, isCurrent);
+    else if (route.page === 'project') await renderProject(app, route.projectId, isCurrent);
+    else if (route.page === 'day') await renderDay(app, route.projectId, route.dayId, isCurrent);
   } catch (err) {
     console.error(err);
-    app.innerHTML = '<div class="container"><div class="card"><h2>Error</h2><p>' + err.message + '</p></div></div>';
+    if (isCurrent()) app.innerHTML = '<div class="container"><div class="card"><h2>Error</h2><p>' + err.message + '</p></div></div>';
   }
+  if (!isCurrent()) return;
   paintSyncStatus();
   window.scrollTo(0, scrollY);
 }
@@ -621,7 +629,7 @@ function stopImpersonating() {
 }
 
 // ===== Dashboard =====
-async function renderDashboard(app) {
+async function renderDashboard(app, isCurrent) {
   const projects = await api('/projects');
   if (!Array.isArray(projects)) {
     console.error('API /projects returned:', projects);
@@ -631,6 +639,7 @@ async function renderDashboard(app) {
   const active = projects.filter(p => !p.archived);
   const completed = projects.filter(p => p.archived);
 
+  if (isCurrent && !isCurrent()) return;
   app.innerHTML = `
     ${impersonateBannerHTML()}
     <div class="nav"><a class="wordmark" href="#/">DIT report</a><div class="spacer"></div>
@@ -794,9 +803,10 @@ async function confirmDisableShare(id) {
 }
 
 // ===== Project Page =====
-async function renderProject(app, id) {
+async function renderProject(app, id, isCurrent) {
   const project = await api('/projects/' + id);
 
+  if (isCurrent && !isCurrent()) return;
   app.innerHTML = `
     ${impersonateBannerHTML()}
     <div class="nav">
@@ -933,10 +943,11 @@ async function exportPDF(id) {
 }
 
 // ===== Day Page =====
-async function renderDay(app, projectId, dayId) {
+async function renderDay(app, projectId, dayId, isCurrent) {
   const day = await api('/days/' + dayId);
   const project = await api('/projects/' + projectId);
 
+  if (isCurrent && !isCurrent()) return;
   app.innerHTML = `
     ${impersonateBannerHTML()}
     <div class="nav">
@@ -1482,7 +1493,8 @@ function openCsvImport(dayId) {
   }
 
   importBtn.addEventListener('click', async () => {
-    if (!parsed) return;
+    if (!parsed || importBtn.disabled) return;
+    importBtn.disabled = true;
     if (parsed.clipMode) {
       const rolls = parsed.clipRolls.map(({ clips, ...roll }) => roll);
       try {
@@ -1492,6 +1504,7 @@ function openCsvImport(dayId) {
         render();
       } catch (err) {
         toast('Import failed');
+        importBtn.disabled = false;
       }
       return;
     }
@@ -1512,6 +1525,7 @@ function openCsvImport(dayId) {
       render();
     } catch (err) {
       toast('Import failed');
+      importBtn.disabled = false;
     }
   });
   overlay.querySelector('.modal-cancel').addEventListener('click', () => closeModal(overlay));
@@ -1895,7 +1909,7 @@ function detectBrand(name) {
 }
 
 // ===== Admin Panel =====
-async function renderAdminUsers(app) {
+async function renderAdminUsers(app, isCurrent) {
   if (!currentUser?.isAdmin) {
     app.innerHTML = '<div class="container"><div class="card"><h2>Forbidden</h2><p>You do not have admin access.</p></div></div>';
     return;
@@ -1903,6 +1917,7 @@ async function renderAdminUsers(app) {
 
   const users = await api('/admin/users');
 
+  if (isCurrent && !isCurrent()) return;
   app.innerHTML = `
     ${impersonateBannerHTML()}
     <div class="nav">

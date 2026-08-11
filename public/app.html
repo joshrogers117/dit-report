@@ -1643,6 +1643,14 @@ async function flushEntity(entity, id) {
     setSyncStatus('saved');
   } catch (err) {
     console.error('Save failed', err);
+    const status = err && err.status;
+    // Permanent rejections (row deleted, not ours, bad value) can never succeed —
+    // drop them instead of poisoning the retry queue. Network errors, 5xx, 401
+    // (token refresh), 408, and 429 stay queued for retry.
+    if (status && status >= 400 && status < 500 && status !== 401 && status !== 408 && status !== 429) {
+      setSyncStatus(pending.size ? 'offline' : 'saved');
+      return;
+    }
     entries.forEach(([k, v]) => pending.set(k, v));
     persistPending();
     setSyncStatus('offline');
